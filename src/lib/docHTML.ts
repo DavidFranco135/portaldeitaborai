@@ -103,6 +103,10 @@ export function buildDocHTML(p: DocHTMLParams): string {
 
   const isMultiBloco = activeBlocos.length > 1;
 
+  const hasTimberItems = activeBlocos.some((b: Bloco) =>
+    (b.items || []).some((it: TimberItem) => calcDerived(it).qtyTotal > 0)
+  );
+
   // Build table section(s)
   function buildTableSection(items: TimberItem[]): string {
     const qtyT = items.reduce((s: number, it: TimberItem) => s + calcDerived(it).qtyTotal, 0);
@@ -136,8 +140,8 @@ export function buildDocHTML(p: DocHTMLParams): string {
     );
   }
 
-  // ── Product table (portas/batentes mode) ────────────────────────────────
-  const productTableHTML: string = doc.docMode === 'produtos' ? (() => {
+  // ── Product table (portas/batentes/outros) — mostra sempre que houver itens ──
+  const productTableHTML: string = productItems.length > 0 ? (() => {
     const rows = productItems.map((it: ProductItem, i: number) => {
       const lineTotal = it.qty * it.priceUnit;
       const bg = i % 2 === 0 ? (eco ? '#fff' : C_WARM) : (eco ? '#fff' : C_SAGE);
@@ -320,7 +324,7 @@ export function buildDocHTML(p: DocHTMLParams): string {
     notesBar +
     '<div style="margin-top:24px"></div>' +
     // Tables — product or timber mode
-    (doc.docMode === 'produtos' ? productTableHTML : tablesSections);
+    (hasTimberItems ? tablesSections : '') + (productTableHTML ? '<div style="margin-top:16px"></div>' + productTableHTML : '');
 
   // Build cheques HTML string
   const isDinheiro = doc.paymentMethod === 'dinheiro';
