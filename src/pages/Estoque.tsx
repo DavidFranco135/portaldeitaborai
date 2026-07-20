@@ -178,6 +178,27 @@ export const Estoque: React.FC = () => {
                   placeholder="Ex: Tábua Pinus 30x1,8cm ou Porta Mista 15 Almofadas 2,10x80"
                   className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
               </div>
+              {form.categoria === 'madeira' && (
+                <div className="grid grid-cols-2 gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Bitola (cm)</label>
+                    <input type="number" step="0.1" value={form.espessura ?? ''}
+                      onChange={e => setForm(p => ({ ...p, espessura: parseFloat(e.target.value) || undefined }))}
+                      placeholder="ex: 1,8"
+                      className="w-full p-2.5 border border-amber-300 rounded-lg text-sm focus:border-amber-600 outline-none bg-white" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Largura (cm)</label>
+                    <input type="number" step="0.1" value={form.largura ?? ''}
+                      onChange={e => setForm(p => ({ ...p, largura: parseFloat(e.target.value) || undefined }))}
+                      placeholder="ex: 30"
+                      className="w-full p-2.5 border border-amber-300 rounded-lg text-sm focus:border-amber-600 outline-none bg-white" />
+                  </div>
+                  <p className="col-span-2 text-[10px] text-amber-600">
+                    Preenchendo bitola e largura aqui, o pedido vincula automaticamente ao estoque quando você digitar essas mesmas medidas na Nota de Entrega — sem precisar escolher manualmente.
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Unidade</label>
