@@ -169,6 +169,8 @@ export interface StockItem {
   categoria: 'madeira' | 'porta' | 'batente' | 'outro';
   descricao: string;            // "Tábua Pinus 30x1,8cm" ou "Porta Mista 15 Almofadas 2,10x80"
   unidade: string;               // 'm³', 'un', 'pc', 'par', etc.
+  espessura?: number;            // bitola (cm) — só pra categoria "madeira", permite vínculo automático
+  largura?: number;              // largura (cm) — só pra categoria "madeira", permite vínculo automático
   quantidadeAtual: number;
   quantidadeMinima?: number;     // alerta de estoque baixo
   precoCusto?: number;
