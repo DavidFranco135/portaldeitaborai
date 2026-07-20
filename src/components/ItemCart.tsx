@@ -165,53 +165,63 @@ export const ItemCart: React.FC<Props> = ({
           const isNew = item.id === justAddedId;
           return (
             <div key={item.id} className={[
-              'bg-white border rounded-xl p-3 flex items-center gap-3 shadow-sm transition-all',
+              'bg-white border rounded-xl p-3 shadow-sm transition-all space-y-2.5',
               isNew ? 'border-green-400 bg-green-50 animate-pulse' : 'border-gray-200'
             ].join(' ')}>
-              <div className="w-9 h-9 bg-amber-50 text-amber-700 rounded-lg flex items-center justify-center flex-shrink-0 text-lg">
-                🪵
+              {/* Row 1: ícone + descrição + excluir */}
+              <div className="flex items-start gap-2.5">
+                <div className="w-9 h-9 bg-amber-50 text-amber-700 rounded-lg flex items-center justify-center flex-shrink-0 text-lg">
+                  🪵
+                </div>
+                <div className="flex-1 min-w-0 pt-1">
+                  <p className="font-bold text-gray-800 text-sm">
+                    {item.espessura}×{item.largura}cm — {comp}m
+                    {(item as any).stockItemId && <Link2 className="w-3 h-3 inline ml-1 text-purple-500" />}
+                  </p>
+                </div>
+                {!readOnly && (
+                  <button onClick={() => removeTimber(item.id)} className="p-1 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-800 text-sm truncate">
-                  {item.espessura}×{item.largura}cm — {comp}m
-                  {(item as any).stockItemId && <Link2 className="w-3 h-3 inline ml-1 text-purple-500" />}
-                </p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {!readOnly ? (
+
+              {/* Row 2: preço R$/m³ + M³ calculado */}
+              <div className="flex items-center gap-2 pl-11">
+                {!readOnly ? (
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <span className="text-[10px] text-gray-400 font-bold whitespace-nowrap">R$/m³</span>
                     <input type="number" value={item.pricePerM3 || ''}
                       onChange={e => updateTimberPrice(item.id, parseFloat(e.target.value) || 0)}
-                      placeholder="R$/m³"
-                      className="w-20 text-xs border border-gray-200 rounded px-1.5 py-0.5 outline-none focus:border-green-500" />
-                  ) : (
-                    <span className="text-xs text-gray-400">{fmt(item.pricePerM3)}/m³</span>
-                  )}
-                  <span className="text-xs text-gray-400">{d.finalM3.toFixed(3)} m³</span>
-                </div>
+                      placeholder="0,00"
+                      className="flex-1 min-w-0 text-sm font-bold border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-green-500" />
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-400">{fmt(item.pricePerM3)}/m³</span>
+                )}
+                <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">{d.finalM3.toFixed(3)} m³</span>
               </div>
-              {!readOnly && (
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button onClick={() => bumpTimberQty(item, -1)}
-                    className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 active:scale-90 transition-all">
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <input type="number" value={qty || ''}
-                    onChange={e => setTimberQty(item, parseInt(e.target.value) || 0)}
-                    onFocus={e => e.target.select()}
-                    className="w-14 text-center font-black text-gray-800 tabular-nums border border-gray-200 rounded-lg py-1.5 outline-none focus:border-green-500 focus:bg-green-50" />
-                  <button onClick={() => bumpTimberQty(item, 1)}
-                    className="w-8 h-8 rounded-lg bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-700 active:scale-90 transition-all">
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-              <div className="text-right flex-shrink-0 w-24">
-                <p className="font-black text-gray-900 text-sm">{fmt(d.value)}</p>
+
+              {/* Row 3: quantidade (steppers) + valor total */}
+              <div className="flex items-center justify-between gap-2 pl-11">
+                {!readOnly && (
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button onClick={() => bumpTimberQty(item, -1)}
+                      className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 active:scale-90 transition-all flex-shrink-0">
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input type="number" value={qty || ''}
+                      onChange={e => setTimberQty(item, parseInt(e.target.value) || 0)}
+                      onFocus={e => e.target.select()}
+                      className="w-16 text-center font-black text-gray-800 tabular-nums border border-gray-200 rounded-lg py-2 outline-none focus:border-green-500 focus:bg-green-50" />
+                    <button onClick={() => bumpTimberQty(item, 1)}
+                      className="w-9 h-9 rounded-lg bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-700 active:scale-90 transition-all flex-shrink-0">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                <p className="font-black text-gray-900 text-base ml-auto">{fmt(d.value)}</p>
               </div>
-              {!readOnly && (
-                <button onClick={() => removeTimber(item.id)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
             </div>
           );
         })}
@@ -220,53 +230,62 @@ export const ItemCart: React.FC<Props> = ({
           const isNew = item.id === justAddedId;
           return (
             <div key={item.id} className={[
-              'bg-white border rounded-xl p-3 flex items-center gap-3 shadow-sm transition-all',
+              'bg-white border rounded-xl p-3 shadow-sm transition-all space-y-2.5',
               isNew ? 'border-green-400 bg-green-50 animate-pulse' : 'border-gray-200'
             ].join(' ')}>
-              <div className="w-9 h-9 bg-blue-50 text-blue-700 rounded-lg flex items-center justify-center flex-shrink-0 text-lg">
-                🚪
+              {/* Row 1: ícone + descrição + excluir */}
+              <div className="flex items-start gap-2.5">
+                <div className="w-9 h-9 bg-blue-50 text-blue-700 rounded-lg flex items-center justify-center flex-shrink-0 text-lg">
+                  🚪
+                </div>
+                <div className="flex-1 min-w-0 pt-1">
+                  <p className="font-bold text-gray-800 text-sm">
+                    {item.desc || 'Sem descrição'}
+                    {item.stockItemId && <Link2 className="w-3 h-3 inline ml-1 text-purple-500" />}
+                  </p>
+                </div>
+                {!readOnly && (
+                  <button onClick={() => removeProduct(item.id)} className="p-1 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-800 text-sm truncate">
-                  {item.desc || 'Sem descrição'}
-                  {item.stockItemId && <Link2 className="w-3 h-3 inline ml-1 text-purple-500" />}
-                </p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {!readOnly ? (
+
+              {/* Row 2: preço unitário + unidade */}
+              <div className="flex items-center gap-2 pl-11">
+                {!readOnly ? (
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <span className="text-[10px] text-gray-400 font-bold whitespace-nowrap">R$/{item.unit}</span>
                     <input type="number" step="0.01" value={item.priceUnit || ''}
                       onChange={e => updateProductPrice(item.id, parseFloat(e.target.value) || 0)}
-                      placeholder="R$"
-                      className="w-20 text-xs border border-gray-200 rounded px-1.5 py-0.5 outline-none focus:border-green-500" />
-                  ) : (
-                    <span className="text-xs text-gray-400">{fmt(item.priceUnit)}</span>
-                  )}
-                  <span className="text-xs text-gray-400">/{item.unit}</span>
-                </div>
+                      placeholder="0,00"
+                      className="flex-1 min-w-0 text-sm font-bold border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-green-500" />
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-400">{fmt(item.priceUnit)} / {item.unit}</span>
+                )}
               </div>
-              {!readOnly && (
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button onClick={() => bumpProductQty(item, -1)}
-                    className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 active:scale-90 transition-all">
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <input type="number" step="0.01" value={item.qty || ''}
-                    onChange={e => setProductQty(item, parseFloat(e.target.value) || 0)}
-                    onFocus={e => e.target.select()}
-                    className="w-14 text-center font-black text-gray-800 tabular-nums border border-gray-200 rounded-lg py-1.5 outline-none focus:border-green-500 focus:bg-green-50" />
-                  <button onClick={() => bumpProductQty(item, 1)}
-                    className="w-8 h-8 rounded-lg bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-700 active:scale-90 transition-all">
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-              <div className="text-right flex-shrink-0 w-24">
-                <p className="font-black text-gray-900 text-sm">{fmt(item.qty * item.priceUnit)}</p>
+
+              {/* Row 3: quantidade (steppers) + valor total */}
+              <div className="flex items-center justify-between gap-2 pl-11">
+                {!readOnly && (
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button onClick={() => bumpProductQty(item, -1)}
+                      className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 active:scale-90 transition-all flex-shrink-0">
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input type="number" step="0.01" value={item.qty || ''}
+                      onChange={e => setProductQty(item, parseFloat(e.target.value) || 0)}
+                      onFocus={e => e.target.select()}
+                      className="w-16 text-center font-black text-gray-800 tabular-nums border border-gray-200 rounded-lg py-2 outline-none focus:border-green-500 focus:bg-green-50" />
+                    <button onClick={() => bumpProductQty(item, 1)}
+                      className="w-9 h-9 rounded-lg bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-700 active:scale-90 transition-all flex-shrink-0">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                <p className="font-black text-gray-900 text-base ml-auto">{fmt(item.qty * item.priceUnit)}</p>
               </div>
-              {!readOnly && (
-                <button onClick={() => removeProduct(item.id)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
             </div>
           );
         })}
