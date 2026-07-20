@@ -6,7 +6,7 @@ import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
 // ═══════════════════════════════════════════════════════════════════════
 // ⚠️ TROQUE aqui o e-mail e senha de acesso do Portal de Itaboraí
 const VALID_EMAIL = 'contato@portaldeitaborai.com.br';
-const VALID_PASSWORD = '65432';
+const VALID_PASSWORD = '654326';
 
 const AUTH_KEY = 'portal_itaborai_auth';
 
