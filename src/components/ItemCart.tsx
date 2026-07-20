@@ -33,6 +33,21 @@ export const ItemCart: React.FC<Props> = ({
   const { state } = useApp();
   const stockItems = state.stockItems || [];
 
+  /**
+   * Verifica se a quantidade pedida de um item vinculado ao estoque passa
+   * do que está disponível. Não bloqueia (pode ser uma encomenda), só
+   * avisa visualmente.
+   */
+  const getStockWarning = (stockItemId: string | undefined, requestedQty: number) => {
+    if (!stockItemId) return null;
+    const s = stockItems.find(x => x.id === stockItemId);
+    if (!s) return null;
+    if (requestedQty > s.quantidadeAtual) {
+      return { disponivel: s.quantidadeAtual, unidade: s.unidade };
+    }
+    return null;
+  };
+
   const [addOpen, setAddOpen] = useState(false);
   const [addTab, setAddTab] = useState<'madeira' | 'produto'>('madeira');
   const [search, setSearch] = useState('');
@@ -49,6 +64,27 @@ export const ItemCart: React.FC<Props> = ({
   const madeiraStock = stockItems.filter(s => s.categoria === 'madeira');
   const produtoStock = stockItems.filter(s => s.categoria !== 'madeira');
 
+  // Vínculo automático: se a bitola + largura digitadas baterem com um
+  // item cadastrado no estoque (com essas medidas exatas), vincula sozinho
+  // — sem precisar tocar num atalho manualmente. Isso é o que garante a
+  // baixa automática do estoque ao concluir o pedido.
+  const autoMatchedStock = useMemo(() => {
+    const esp = parseFloat(mEsp);
+    const larg = parseFloat(mLarg);
+    if (!esp || !larg) return null;
+    return madeiraStock.find(s => s.espessura === esp && s.largura === larg) || null;
+  }, [mEsp, mLarg, madeiraStock]);
+
+  React.useEffect(() => {
+    if (autoMatchedStock) {
+      setMStockId(autoMatchedStock.id);
+      if (autoMatchedStock.precoVenda && !mPreco) setMPreco(String(autoMatchedStock.precoVenda));
+    } else if (mStockId && !madeiraStock.some(s => s.id === mStockId)) {
+      setMStockId(undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoMatchedStock]);
+
   // ── Totais combinados ──────────────────────────────────────────────────
   const timberTotals = useMemo(() => timberItems.reduce((acc, it) => {
     const d = calcDerived(it);
@@ -64,6 +100,12 @@ export const ItemCart: React.FC<Props> = ({
 
   const grandTotal = timberTotals.value + productTotal;
   const totalItems = timberItems.length + productItems.length;
+  const stockWarningCount = useMemo(() => {
+    const timberQty = (it: TimberItem) => it.c3 || it.c4 || it.c5 || it.c6 || 0;
+    const timberCount = timberItems.filter(it => getStockWarning((it as any).stockItemId, timberQty(it))).length;
+    const productCount = productItems.filter(it => getStockWarning(it.stockItemId, it.qty)).length;
+    return timberCount + productCount;
+  }, [timberItems, productItems, stockItems]);
 
   // ── Ações: madeira ──────────────────────────────────────────────────────
   const removeTimber = (id: string) => onChangeTimber(timberItems.filter(it => it.id !== id));
@@ -162,11 +204,13 @@ export const ItemCart: React.FC<Props> = ({
           const d = calcDerived(item);
           const comp = item.c3 ? 3 : item.c4 ? 4 : item.c5 ? 5 : item.c6 ? 6 : 0;
           const qty = item.c3 || item.c4 || item.c5 || item.c6 || 0;
+          const timberStockWarning = getStockWarning((item as any).stockItemId, qty);
           const isNew = item.id === justAddedId;
           return (
             <div key={item.id} className={[
               'bg-white border rounded-xl p-3 shadow-sm transition-all space-y-2.5',
-              isNew ? 'border-green-400 bg-green-50 animate-pulse' : 'border-gray-200'
+              isNew ? 'border-green-400 bg-green-50 animate-pulse'
+                : timberStockWarning ? 'border-red-300' : 'border-gray-200'
             ].join(' ')}>
               {/* Row 1: ícone + descrição + excluir */}
               <div className="flex items-start gap-2.5">
@@ -178,6 +222,11 @@ export const ItemCart: React.FC<Props> = ({
                     {item.espessura}×{item.largura}cm — {comp}m
                     {(item as any).stockItemId && <Link2 className="w-3 h-3 inline ml-1 text-purple-500" />}
                   </p>
+                  {timberStockWarning && (
+                    <p className="text-[10px] text-red-600 font-bold flex items-center gap-1 mt-0.5">
+                      ⚠ Estoque insuficiente — disponível: {timberStockWarning.disponivel} {timberStockWarning.unidade}
+                    </p>
+                  )}
                 </div>
                 {!readOnly && (
                   <button onClick={() => removeTimber(item.id)} className="p-1 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
@@ -228,10 +277,12 @@ export const ItemCart: React.FC<Props> = ({
 
         {productItems.map(item => {
           const isNew = item.id === justAddedId;
+          const productStockWarning = getStockWarning(item.stockItemId, item.qty);
           return (
             <div key={item.id} className={[
               'bg-white border rounded-xl p-3 shadow-sm transition-all space-y-2.5',
-              isNew ? 'border-green-400 bg-green-50 animate-pulse' : 'border-gray-200'
+              isNew ? 'border-green-400 bg-green-50 animate-pulse'
+                : productStockWarning ? 'border-red-300' : 'border-gray-200'
             ].join(' ')}>
               {/* Row 1: ícone + descrição + excluir */}
               <div className="flex items-start gap-2.5">
@@ -243,6 +294,11 @@ export const ItemCart: React.FC<Props> = ({
                     {item.desc || 'Sem descrição'}
                     {item.stockItemId && <Link2 className="w-3 h-3 inline ml-1 text-purple-500" />}
                   </p>
+                  {productStockWarning && (
+                    <p className="text-[10px] text-red-600 font-bold flex items-center gap-1 mt-0.5">
+                      ⚠ Estoque insuficiente — disponível: {productStockWarning.disponivel} {productStockWarning.unidade}
+                    </p>
+                  )}
                 </div>
                 {!readOnly && (
                   <button onClick={() => removeProduct(item.id)} className="p-1 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
@@ -307,6 +363,11 @@ export const ItemCart: React.FC<Props> = ({
             </p>
             <p className="text-xl font-black text-yellow-300">{fmt(grandTotal)}</p>
           </div>
+          {stockWarningCount > 0 && (
+            <div className="bg-red-500 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 flex-shrink-0">
+              ⚠ {stockWarningCount} sem estoque
+            </div>
+          )}
         </div>
       )}
 
@@ -385,6 +446,15 @@ export const ItemCart: React.FC<Props> = ({
                         className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
                     </div>
                   </div>
+
+                  {autoMatchedStock && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-xl p-2.5 flex items-center gap-2">
+                      <Link2 className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                      <p className="text-[11px] text-purple-700 font-bold">
+                        Vinculado automaticamente a "{autoMatchedStock.descricao}" — vai descontar do estoque ao concluir
+                      </p>
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Comprimento</label>
