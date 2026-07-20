@@ -4,6 +4,7 @@ import { useApp } from '../store/AppContext';
 import { Document, Bloco, TimberItem } from '../types';
 import { TimberCalculator } from '../components/TimberCalculator';
 import { ProductCalculator } from '../components/ProductCalculator';
+import { ItemCart } from '../components/ItemCart';
 import { ClientAutocomplete } from '../components/ClientAutocomplete';
 import { ChequeTable } from '../components/ChequeTable';
 import { PaymentTracker } from '../components/PaymentTracker';
@@ -160,13 +161,9 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
     }
   }, [fromPedidoId]);
 
-  // ── Totals ────────────────────────────────────────────────────────────────
+  // ── Totals — soma madeira + produtos juntos, sempre ──────────────────────
   const totals = useMemo(() => {
-    if (doc.docMode === 'produtos') {
-      const subtotal = (doc.productItems || []).reduce((s, it) => s + it.qty * it.priceUnit, 0);
-      return { m3: 0, subtotal };
-    }
-    return (doc.blocos || []).reduce(
+    const timberTotals = (doc.blocos || []).reduce(
       (acc, bloco) => {
         const bt = calcBlocoTotals(bloco);
         acc.m3 += bt.m3;
@@ -175,7 +172,9 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
       },
       { m3: 0, subtotal: 0 }
     );
-  }, [doc.blocos, doc.productItems, doc.docMode]);
+    const productSubtotal = (doc.productItems || []).reduce((s, it) => s + it.qty * it.priceUnit, 0);
+    return { m3: timberTotals.m3, subtotal: timberTotals.subtotal + productSubtotal };
+  }, [doc.blocos, doc.productItems]);
 
   const freightIcms = doc.freightIcms || 0;
 
@@ -843,7 +842,7 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
             <span className="text-sm font-black text-gray-700">📋 Dados do Documento</span>
             {!showDocFields && (
               <span className="text-[10px] text-gray-400 font-bold">
-                Nº {doc.number} · {doc.woodType || 'pinus'} · {doc.docMode === 'produtos' ? 'Produtos' : 'Madeira'}
+                Nº {doc.number} · {doc.woodType || 'pinus'}
               </span>
             )}
           </div>
@@ -851,33 +850,6 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
         </button>
         {showDocFields && (
         <div className="p-4 pt-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Doc mode selector */}
-        <div className="space-y-1 md:col-span-2 lg:col-span-4">
-          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tipo de Tabela</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button"
-              onClick={() => setDoc(p => ({ ...p, docMode: 'madeira' }))}
-              className={[
-                'py-2.5 rounded-lg text-sm font-bold border-2 transition-all flex items-center justify-center gap-2',
-                doc.docMode !== 'produtos'
-                  ? 'border-green-600 bg-green-50 text-green-800'
-                  : 'border-gray-200 text-gray-400 hover:border-gray-300'
-              ].join(' ')}>
-              🪵 Madeira Serrada (M³)
-            </button>
-            <button type="button"
-              onClick={() => setDoc(p => ({ ...p, docMode: 'produtos' }))}
-              className={[
-                'py-2.5 rounded-lg text-sm font-bold border-2 transition-all flex items-center justify-center gap-2',
-                doc.docMode === 'produtos'
-                  ? 'border-amber-500 bg-amber-50 text-amber-800'
-                  : 'border-gray-200 text-gray-400 hover:border-gray-300'
-              ].join(' ')}>
-              🚪 Produtos (Portas/Batentes)
-            </button>
-          </div>
-        </div>
-
         <div className="space-y-1">
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nº Documento</label>
           <input value={doc.number || ''} onChange={e => setDoc(p => ({ ...p, number: e.target.value }))}
@@ -1140,166 +1112,68 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
         )}
       </div>
 
-      {/* ── TABLE: Produtos or Madeira ── */}
-      {doc.docMode === 'produtos' ? (
-        <div className="space-y-4">
-          {/* Client for produtos mode */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-black text-gray-700">
-                {type === 'pedido' ? 'Destinatário' : 'Cliente'}
-              </h3>
-              <Link to="/clientes" className="text-[9px] font-bold text-green-700 hover:underline flex items-center gap-1">
-                <Plus className="w-2.5 h-2.5" /> Cadastrar
-              </Link>
-            </div>
-            <select value={doc.blocos?.[0]?.clientId || ''}
-              onChange={e => {
-                const c = state.clients.find(x => x.id === e.target.value);
-                setDoc(p => ({
-                  ...p,
-                  blocos: [{
-                    ...(p.blocos?.[0] || { id: Math.random().toString(36).slice(2,9), label: 'Principal', items: [] }),
-                    clientId: e.target.value,
-                    clientName: c?.name || '',
-                    clientData: c ? { ...c } : undefined,
-                  }],
-                }));
-              }}
-              className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none mb-2">
-              <option value="">— Selecionar —</option>
-              {[...state.clients].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            {!doc.blocos?.[0]?.clientId && (
-              <ClientAutocomplete
-                value={doc.blocos?.[0]?.clientName || ''}
-                clients={sortedClientNames}
-                onChangeText={typed => setDoc(p => ({
-                  ...p,
-                  blocos: [{
-                    ...(p.blocos?.[0] || { id: Math.random().toString(36).slice(2,9), label: 'Principal', items: [] }),
-                    clientName: typed,
-                  }],
-                }))}
-                onSelect={c => setDoc(p => ({
-                  ...p,
-                  blocos: [{
-                    ...(p.blocos?.[0] || { id: Math.random().toString(36).slice(2,9), label: 'Principal', items: [] }),
-                    clientId: c.id,
-                    clientName: c.name,
-                    clientData: { ...c },
-                  }],
-                }))}
-              />
-            )}
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm overflow-x-auto">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm font-black text-amber-700">🚪 Produtos / Portas / Batentes</span>
-            </div>
-            <ProductCalculator
-              items={doc.productItems || []}
-              onChange={productItems => setDoc(p => ({ ...p, productItems }))}
-            />
-          </div>
-        </div>
-      ) : (
+      {/* ── Cliente + Carrinho unificado (madeira + produtos juntos) ── */}
       <div className="space-y-4">
-        {blocos.map((bloco, bi) => {
-          const bt = calcBlocoTotals(bloco);
-          const isCollapsed = collapsedBlocos[bloco.id];
-          return (
-            <div key={bloco.id} className="bg-white border-2 border-green-200 rounded-xl shadow-sm overflow-hidden">
-              {/* Bloco header */}
-              <div className="flex items-center justify-between px-4 py-3 bg-green-50 border-b border-green-200 gap-3">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-8 h-8 bg-green-700 text-white rounded-lg flex items-center justify-center font-black text-sm flex-shrink-0">
-                    {bi + 1}
-                  </div>
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <Building2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-                    <input
-                      value={bloco.label}
-                      onChange={e => updateBloco(bloco.id, { label: e.target.value })}
-                      placeholder="Nome da loja / local..."
-                      className="font-black text-green-800 bg-transparent border-b-2 border-dashed border-green-300 focus:border-green-600 outline-none text-sm min-w-0 py-0.5 w-full"
-                    />
-                  </div>
-                  {bt.m3 > 0 && (
-                    <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-                      {bt.m3.toFixed(3)} m³ · {fmt(bt.subtotal)}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button onClick={() => toggleBloco(bloco.id)}
-                    className="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition-all">
-                    {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                  </button>
-                  {blocos.length > 1 && (
-                    <button onClick={() => removeBloco(bloco.id)}
-                      className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-black text-gray-700">
+              {type === 'pedido' ? 'Destinatário' : 'Cliente'}
+            </h3>
+            <Link to="/clientes" className="text-[9px] font-bold text-green-700 hover:underline flex items-center gap-1">
+              <Plus className="w-2.5 h-2.5" /> Cadastrar
+            </Link>
+          </div>
+          <select value={doc.blocos?.[0]?.clientId || ''}
+            onChange={e => {
+              const c = state.clients.find(x => x.id === e.target.value);
+              setDoc(p => ({
+                ...p,
+                blocos: [{
+                  ...(p.blocos?.[0] || { id: Math.random().toString(36).slice(2,9), label: 'Principal', items: [] }),
+                  clientId: e.target.value,
+                  clientName: c?.name || '',
+                  clientData: c ? { ...c } : undefined,
+                }],
+              }));
+            }}
+            className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none mb-2">
+            <option value="">— Selecionar —</option>
+            {[...state.clients].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          {!doc.blocos?.[0]?.clientId && (
+            <ClientAutocomplete
+              value={doc.blocos?.[0]?.clientName || ''}
+              clients={sortedClientNames}
+              onChangeText={typed => setDoc(p => ({
+                ...p,
+                blocos: [{
+                  ...(p.blocos?.[0] || { id: Math.random().toString(36).slice(2,9), label: 'Principal', items: [] }),
+                  clientName: typed,
+                }],
+              }))}
+              onSelect={c => setDoc(p => ({
+                ...p,
+                blocos: [{
+                  ...(p.blocos?.[0] || { id: Math.random().toString(36).slice(2,9), label: 'Principal', items: [] }),
+                  clientId: c.id,
+                  clientName: c.name,
+                  clientData: { ...c },
+                }],
+              }))}
+            />
+          )}
+        </div>
 
-              {!isCollapsed && (
-                <div className="p-4 space-y-4">
-                  {/* Bloco client */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                          {type === 'pedido' ? 'Destinatário' : 'Cliente'}
-                        </label>
-                        <Link to="/clientes" className="text-[9px] font-bold text-green-700 hover:underline flex items-center gap-1">
-                          <Plus className="w-2.5 h-2.5" /> Cadastrar
-                        </Link>
-                      </div>
-                      <select value={bloco.clientId || ''}
-                        onChange={e => handleBlocoClientSelect(bloco.id, e.target.value)}
-                        className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none">
-                        <option value="">— Selecionar —</option>
-                        {[...state.clients].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                      {!bloco.clientId && (
-                        <ClientAutocomplete
-                          value={bloco.clientName || ''}
-                          clients={sortedClientNames}
-                          onChangeText={typed => updateBloco(bloco.id, { clientName: typed })}
-                          onSelect={c => updateBloco(bloco.id, { clientId: c.id, clientName: c.name, clientData: { ...c } })}
-                        />
-                      )}
-                    </div>
-                    {bloco.clientData && (
-                      <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500 space-y-0.5">
-                        {(bloco.clientData as any).address && <p>📍 {(bloco.clientData as any).address}</p>}
-                        {(bloco.clientData as any).city && <p>🏙 {(bloco.clientData as any).city}</p>}
-                        {(bloco.clientData as any).phone && <p>📞 {(bloco.clientData as any).phone}</p>}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Bloco calculator */}
-                  <TimberCalculator
-                    items={bloco.items}
-                    onChange={items => updateBloco(bloco.id, { items })}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* Add bloco button */}
-        <button onClick={addBloco}
-          className="w-full py-3 border-2 border-dashed border-green-300 text-green-700 rounded-xl font-bold text-sm hover:border-green-500 hover:bg-green-50 transition-all flex items-center justify-center gap-2">
-          <Plus className="w-4 h-4" /> Adicionar Loja / Bloco
-        </button>
+        <ItemCart
+          timberItems={doc.blocos?.[0]?.items || []}
+          onChangeTimber={items => setDoc(p => ({
+            ...p,
+            blocos: [{ ...(p.blocos?.[0] || { id: Math.random().toString(36).slice(2,9), label: 'Principal', clientName: '' }), items }],
+          }))}
+          productItems={doc.productItems || []}
+          onChangeProducts={productItems => setDoc(p => ({ ...p, productItems }))}
+        />
       </div>
-      )}
 
       {/* Cheques — romaneio only */}
       {type === 'romaneio' && (
