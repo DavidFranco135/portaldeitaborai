@@ -72,6 +72,10 @@ export const ItemCart: React.FC<Props> = ({
     const current = (item as any)[comp] || 0;
     onChangeTimber(timberItems.map(it => it.id === item.id ? { ...it, [comp]: Math.max(0, current + delta) } : it));
   };
+  const setTimberQty = (item: TimberItem, value: number) => {
+    const comp = item.c3 ? 'c3' : item.c4 ? 'c4' : item.c5 ? 'c5' : item.c6 ? 'c6' : 'c3';
+    onChangeTimber(timberItems.map(it => it.id === item.id ? { ...it, [comp]: Math.max(0, value) } : it));
+  };
   const updateTimberPrice = (id: string, price: number) =>
     onChangeTimber(timberItems.map(it => it.id === id ? { ...it, pricePerM3: price } : it));
 
@@ -105,6 +109,8 @@ export const ItemCart: React.FC<Props> = ({
   const removeProduct = (id: string) => onChangeProducts(productItems.filter(it => it.id !== id));
   const bumpProductQty = (item: ProductItem, delta: number) =>
     onChangeProducts(productItems.map(it => it.id === item.id ? { ...it, qty: Math.max(0, it.qty + delta) } : it));
+  const setProductQty = (item: ProductItem, value: number) =>
+    onChangeProducts(productItems.map(it => it.id === item.id ? { ...it, qty: Math.max(0, value) } : it));
   const updateProductPrice = (id: string, price: number) =>
     onChangeProducts(productItems.map(it => it.id === id ? { ...it, priceUnit: price } : it));
 
@@ -188,7 +194,10 @@ export const ItemCart: React.FC<Props> = ({
                     className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 active:scale-90 transition-all">
                     <Minus className="w-3.5 h-3.5" />
                   </button>
-                  <span className="w-10 text-center font-black text-gray-800 tabular-nums">{qty}</span>
+                  <input type="number" value={qty || ''}
+                    onChange={e => setTimberQty(item, parseInt(e.target.value) || 0)}
+                    onFocus={e => e.target.select()}
+                    className="w-14 text-center font-black text-gray-800 tabular-nums border border-gray-200 rounded-lg py-1.5 outline-none focus:border-green-500 focus:bg-green-50" />
                   <button onClick={() => bumpTimberQty(item, 1)}
                     className="w-8 h-8 rounded-lg bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-700 active:scale-90 transition-all">
                     <Plus className="w-3.5 h-3.5" />
@@ -240,7 +249,10 @@ export const ItemCart: React.FC<Props> = ({
                     className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 active:scale-90 transition-all">
                     <Minus className="w-3.5 h-3.5" />
                   </button>
-                  <span className="w-10 text-center font-black text-gray-800 tabular-nums">{item.qty}</span>
+                  <input type="number" step="0.01" value={item.qty || ''}
+                    onChange={e => setProductQty(item, parseFloat(e.target.value) || 0)}
+                    onFocus={e => e.target.select()}
+                    className="w-14 text-center font-black text-gray-800 tabular-nums border border-gray-200 rounded-lg py-1.5 outline-none focus:border-green-500 focus:bg-green-50" />
                   <button onClick={() => bumpProductQty(item, 1)}
                     className="w-8 h-8 rounded-lg bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-700 active:scale-90 transition-all">
                     <Plus className="w-3.5 h-3.5" />
