@@ -1,14 +1,13 @@
-// Firebase configuration
-// Replace with your actual Firebase config when ready
-// You can get this from: Firebase Console > Project Settings > Your Apps > SDK Setup
+// Firebase configuration — Portal de Itaboraí
+// Projeto Firebase: hermanos-90985
 
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  apiKey: "AIzaSyDkx-pRSL2bpYDxHPzGxS7I5JP7E9D7DZk",
+  authDomain: "hermanos-90985.firebaseapp.com",
+  projectId: "hermanos-90985",
+  storageBucket: "hermanos-90985.firebasestorage.app",
+  messagingSenderId: "306235657486",
+  appId: "1:306235657486:web:531c91d953e09de8c29b5f",
 };
 
 export const isFirebaseConfigured = () => {
