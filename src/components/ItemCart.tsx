@@ -159,16 +159,28 @@ export const ItemCart: React.FC<Props> = ({
     setAddOpen(false);
   };
 
-  const pickMadeiraStock = (s: StockItem) => {
-    setMStockId(s.id);
-    setMDesc(s.descricao);
-    if (s.precoVenda) {
-      setMPreco(String(s.precoVenda));
-      if (mPriceMode === 'peca' && s.espessura && s.largura) {
-        const m3 = (s.espessura / 100) * (s.largura / 100) * mComp;
-        if (m3 > 0) setMPrecoPeca((s.precoVenda * m3).toFixed(2));
-      }
-    }
+  /**
+   * Adiciona madeira direto do estoque, tocando na grade — 1 peça, no
+   * comprimento selecionado, com o preço já cadastrado. Modal continua
+   * aberto (igual produtos), pra adicionar vários itens seguidos. A
+   * quantidade e o preço ficam livres pra ajustar depois, direto no
+   * carrinho.
+   */
+  const addFromMadeiraStock = (s: StockItem) => {
+    if (!s.espessura || !s.largura) return;
+    const item = newEmptyItem();
+    item.espessura = s.espessura;
+    item.largura = s.largura;
+    item.desc = s.descricao;
+    item.pricePerM3 = s.precoVenda || 0;
+    item.stockItemId = s.id;
+    (item as any)[`c${mComp}`] = 1;
+
+    onChangeTimber([...timberItems, item]);
+    setJustAddedId(item.id);
+    setTimeout(() => setJustAddedId(null), 1500);
+    setAddedFlash(s.descricao);
+    setTimeout(() => setAddedFlash(null), 1200);
   };
 
   // ── Ações: produtos ──────────────────────────────────────────────────────
@@ -464,74 +476,22 @@ export const ItemCart: React.FC<Props> = ({
             <div className="overflow-y-auto flex-1 p-4">
               {addTab === 'madeira' ? (
                 <div className="space-y-4">
-                  {/* Prateleira do estoque — toca no item e já preenche bitola/largura/preço */}
-                  {madeiraStock.length > 0 && (
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">📦 Do estoque — toque pra preencher tudo</label>
-                      <div className="flex gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
-                        {madeiraStock.map(s => (
-                          <button key={s.id}
-                            onClick={() => {
-                              pickMadeiraStock(s);
-                              if (s.espessura) setMEsp(String(s.espessura));
-                              if (s.largura) setMLarg(String(s.largura));
-                            }}
-                            className={[
-                              'flex-shrink-0 w-32 text-left p-2.5 rounded-xl border-2 transition-all',
-                              mStockId === s.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200 bg-white hover:border-gray-300'
-                            ].join(' ')}>
-                            <p className="text-[11px] font-bold text-gray-700 leading-tight line-clamp-2">{s.descricao}</p>
-                            {s.espessura && s.largura && (
-                              <p className="text-[9px] text-gray-400 mt-1">{s.espessura}×{s.largura}cm</p>
-                            )}
-                            <p className="text-sm font-black text-green-700 mt-1">
-                              {s.precoVenda ? fmt(s.precoVenda) : '—'}
-                            </p>
-                            <p className="text-[8px] text-gray-400">/m³ · {s.quantidadeAtual} disp.</p>
-                          </button>
-                        ))}
-                      </div>
+                  {/* Confirmação rápida — modal continua aberto */}
+                  {addedFlash && (
+                    <div className="bg-green-600 text-white rounded-xl p-3 flex items-center gap-2 animate-pulse">
+                      <Check className="w-4 h-4 flex-shrink-0" />
+                      <p className="text-xs font-bold truncate">"{addedFlash}" adicionado — pode continuar escolhendo</p>
                     </div>
                   )}
 
+                  {/* Comprimento aplicado ao próximo item tocado na grade */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nome / Descrição (opcional)</label>
-                    <input autoFocus value={mDesc} onChange={e => setMDesc(e.target.value)}
-                      placeholder="Ex: Tábua Pinus 30x1,8"
-                      className="w-full p-3 border-2 border-gray-200 rounded-xl text-sm font-bold focus:border-amber-500 outline-none" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bitola (cm)</label>
-                      <input type="number" step="0.1" value={mEsp} onChange={e => setMEsp(e.target.value)}
-                        placeholder="1,8"
-                        className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Largura (cm)</label>
-                      <input type="number" step="0.1" value={mLarg} onChange={e => setMLarg(e.target.value)}
-                        placeholder="30"
-                        className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
-                    </div>
-                  </div>
-
-                  {autoMatchedStock && (
-                    <div className="bg-purple-50 border border-purple-200 rounded-xl p-2.5 flex items-center gap-2">
-                      <Link2 className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                      <p className="text-[11px] text-purple-700 font-bold">
-                        Vinculado automaticamente a "{autoMatchedStock.descricao}" — vai descontar do estoque ao concluir
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Comprimento</label>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Comprimento (aplica ao tocar)</label>
                     <div className="grid grid-cols-4 gap-2">
                       {COMPS.map(c => (
                         <button key={c} onClick={() => setMComp(c)}
                           className={[
-                            'py-3 rounded-xl text-sm font-black border-2 transition-all',
+                            'py-2.5 rounded-xl text-sm font-black border-2 transition-all',
                             mComp === c ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-gray-200 text-gray-400'
                           ].join(' ')}>
                           {c}m
@@ -540,75 +500,144 @@ export const ItemCart: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Qtd de Peças</label>
-                      <input type="number" value={mQty} onChange={e => setMQty(e.target.value)}
-                        placeholder="0"
-                        className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Preço</label>
-                        <div className="flex gap-0.5 p-0.5 bg-gray-100 rounded-md">
-                          <button type="button" onClick={() => setMPriceMode('m3')}
-                            className={['px-1.5 py-0.5 rounded text-[9px] font-bold transition-all',
-                              mPriceMode === 'm3' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-400'].join(' ')}>
-                            R$/m³
-                          </button>
-                          <button type="button" onClick={() => setMPriceMode('peca')}
-                            className={['px-1.5 py-0.5 rounded text-[9px] font-bold transition-all',
-                              mPriceMode === 'peca' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-400'].join(' ')}>
-                            R$/peça
-                          </button>
-                        </div>
+                  {/* Grade do estoque — toca e adiciona direto, sem fechar o modal */}
+                  {madeiraStock.length > 0 ? (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">📦 Toque para adicionar</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {madeiraStock.map(s => {
+                          const isLow = (s.quantidadeMinima || 0) > 0 && s.quantidadeAtual <= (s.quantidadeMinima || 0);
+                          return (
+                            <button key={s.id} onClick={() => addFromMadeiraStock(s)}
+                              className="text-left p-2.5 rounded-xl border-2 border-gray-200 bg-white hover:border-amber-400 active:scale-95 transition-all">
+                              <p className="text-[11px] font-bold text-gray-700 leading-tight line-clamp-2">{s.descricao}</p>
+                              {s.espessura && s.largura && (
+                                <p className="text-[9px] text-gray-400 mt-0.5">{s.espessura}×{s.largura}cm</p>
+                              )}
+                              <p className="text-sm font-black text-green-700 mt-1">
+                                {s.precoVenda ? fmt(s.precoVenda) : '—'}
+                              </p>
+                              <div className="flex items-center justify-between">
+                                <p className="text-[8px] text-gray-400">/m³</p>
+                                <p className={['text-[9px] font-bold', isLow ? 'text-red-500' : 'text-gray-400'].join(' ')}>
+                                  {s.quantidadeAtual} disp.
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
-                      {mPriceMode === 'm3' ? (
-                        <input type="number" value={mPreco} onChange={e => setMPreco(e.target.value)}
-                          placeholder="0,00"
-                          className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
-                      ) : (
-                        <input type="number" value={mPrecoPeca} onChange={e => setMPrecoPeca(e.target.value)}
-                          placeholder="0,00"
-                          className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
-                      )}
                     </div>
-                  </div>
+                  ) : (
+                    <p className="text-center text-gray-400 text-xs py-4">
+                      Nenhuma madeira cadastrada no estoque ainda. Cadastre em <strong>Estoque → Novo Item</strong>, ou adicione com medida customizada abaixo.
+                    </p>
+                  )}
 
-                  {(parseFloat(mEsp) > 0 && parseFloat(mLarg) > 0 && parseInt(mQty) > 0) && (() => {
-                    const esp = parseFloat(mEsp), larg = parseFloat(mLarg), qty = parseInt(mQty) || 0;
-                    const m3Peca = (esp / 100) * (larg / 100) * mComp;
-                    const m3Total = m3Peca * qty;
-                    const precoM3 = mPriceMode === 'peca'
-                      ? (m3Peca > 0 ? (parseFloat(mPrecoPeca) || 0) / m3Peca : 0)
-                      : (parseFloat(mPreco) || 0);
-                    const valorPeca = m3Peca * precoM3;
-                    const valorTotal = m3Total * precoM3;
-                    return (
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
-                        <p className="text-[10px] text-amber-600 font-bold uppercase text-center">Prévia</p>
-                        <div className="grid grid-cols-2 gap-2 text-center">
-                          <div>
-                            <p className="text-[9px] text-amber-500">Valor da peça</p>
-                            <p className="text-sm font-black text-amber-800">{valorPeca > 0 ? fmt(valorPeca) : '—'}</p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] text-amber-500">Total ({qty} peças)</p>
-                            <p className="text-sm font-black text-amber-800">{valorTotal > 0 ? fmt(valorTotal) : '—'}</p>
-                          </div>
-                        </div>
-                        <p className="text-[10px] text-amber-600 text-center">
-                          {m3Total.toFixed(3)} m³ · {fmt(precoM3)}/m³
+                  {/* Item avulso — medida customizada, fora do estoque */}
+                  <div className="border-t border-gray-100 pt-4 space-y-3">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ou adicionar com medida customizada</p>
+
+                    <div className="space-y-1">
+                      <input value={mDesc} onChange={e => setMDesc(e.target.value)}
+                        placeholder="Nome / descrição (opcional) — Ex: Tábua Pinus 30x1,8"
+                        className="w-full p-3 border-2 border-gray-200 rounded-xl text-sm font-bold focus:border-amber-500 outline-none" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bitola (cm)</label>
+                        <input type="number" step="0.1" value={mEsp} onChange={e => setMEsp(e.target.value)}
+                          placeholder="1,8"
+                          className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Largura (cm)</label>
+                        <input type="number" step="0.1" value={mLarg} onChange={e => setMLarg(e.target.value)}
+                          placeholder="30"
+                          className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
+                      </div>
+                    </div>
+
+                    {autoMatchedStock && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-xl p-2.5 flex items-center gap-2">
+                        <Link2 className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                        <p className="text-[11px] text-purple-700 font-bold">
+                          Vinculado automaticamente a "{autoMatchedStock.descricao}" — vai descontar do estoque ao concluir
                         </p>
                       </div>
-                    );
-                  })()}
+                    )}
 
-                  <button onClick={confirmAddMadeira}
-                    disabled={!mEsp || !mLarg || !mQty}
-                    className="w-full py-4 bg-amber-600 text-white rounded-xl text-base font-black hover:bg-amber-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                    Adicionar ao Pedido
-                  </button>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Qtd de Peças</label>
+                        <input type="number" value={mQty} onChange={e => setMQty(e.target.value)}
+                          placeholder="0"
+                          className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Preço</label>
+                          <div className="flex gap-0.5 p-0.5 bg-gray-100 rounded-md">
+                            <button type="button" onClick={() => setMPriceMode('m3')}
+                              className={['px-1.5 py-0.5 rounded text-[9px] font-bold transition-all',
+                                mPriceMode === 'm3' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-400'].join(' ')}>
+                              R$/m³
+                            </button>
+                            <button type="button" onClick={() => setMPriceMode('peca')}
+                              className={['px-1.5 py-0.5 rounded text-[9px] font-bold transition-all',
+                                mPriceMode === 'peca' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-400'].join(' ')}>
+                              R$/peça
+                            </button>
+                          </div>
+                        </div>
+                        {mPriceMode === 'm3' ? (
+                          <input type="number" value={mPreco} onChange={e => setMPreco(e.target.value)}
+                            placeholder="0,00"
+                            className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
+                        ) : (
+                          <input type="number" value={mPrecoPeca} onChange={e => setMPrecoPeca(e.target.value)}
+                            placeholder="0,00"
+                            className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
+                        )}
+                      </div>
+                    </div>
+
+                    {(parseFloat(mEsp) > 0 && parseFloat(mLarg) > 0 && parseInt(mQty) > 0) && (() => {
+                      const esp = parseFloat(mEsp), larg = parseFloat(mLarg), qty = parseInt(mQty) || 0;
+                      const m3Peca = (esp / 100) * (larg / 100) * mComp;
+                      const m3Total = m3Peca * qty;
+                      const precoM3 = mPriceMode === 'peca'
+                        ? (m3Peca > 0 ? (parseFloat(mPrecoPeca) || 0) / m3Peca : 0)
+                        : (parseFloat(mPreco) || 0);
+                      const valorPeca = m3Peca * precoM3;
+                      const valorTotal = m3Total * precoM3;
+                      return (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
+                          <p className="text-[10px] text-amber-600 font-bold uppercase text-center">Prévia</p>
+                          <div className="grid grid-cols-2 gap-2 text-center">
+                            <div>
+                              <p className="text-[9px] text-amber-500">Valor da peça</p>
+                              <p className="text-sm font-black text-amber-800">{valorPeca > 0 ? fmt(valorPeca) : '—'}</p>
+                            </div>
+                            <div>
+                              <p className="text-[9px] text-amber-500">Total ({qty} peças)</p>
+                              <p className="text-sm font-black text-amber-800">{valorTotal > 0 ? fmt(valorTotal) : '—'}</p>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-amber-600 text-center">
+                            {m3Total.toFixed(3)} m³ · {fmt(precoM3)}/m³
+                          </p>
+                        </div>
+                      );
+                    })()}
+
+                    <button onClick={confirmAddMadeira}
+                      disabled={!mEsp || !mLarg || !mQty}
+                      className="w-full py-3.5 bg-amber-600 text-white rounded-xl text-sm font-black hover:bg-amber-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                      Adicionar Medida Customizada
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
