@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../store/AppContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Users, FileText, Truck, ArrowRight, Clock, CheckCircle2, ChevronDown, Package, LayoutGrid } from 'lucide-react';
-import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 
 function fmt(n: number) {
@@ -15,8 +15,9 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [showPedidos, setShowPedidos] = useState(false);
   const [showRomaneios, setShowRomaneios] = useState(false);
+  const [periodoVendas, setPeriodoVendas] = useState<'hoje' | 'semana' | 'mes'>('hoje');
 
-  // Pedidos em andamento
+  // Orçamentos em andamento (era "Pedidos")
   const pedidosAndamento = state.documents.filter(
     d => d.type === 'pedido' && d.status !== 'concluido'
   );
@@ -27,38 +28,24 @@ export const Dashboard: React.FC = () => {
     return paid < d.total - 0.01;
   });
 
-  // Monthly commission
+  // Vendas (romaneios) por período — Hoje / Semana / Mês
   const now = new Date();
-  const romaneiosMes = state.documents.filter(d => {
-    if (d.type !== 'romaneio') return false;
-    try {
-      return isWithinInterval(parseISO(d.date + 'T12:00:00'), {
-        start: startOfMonth(now), end: endOfMonth(now),
-      });
-    } catch { return false; }
-  });
-  const comissaoMes = romaneiosMes.reduce((s, d) => s + (d.myShareValue ?? d.commissionValue ?? 0), 0);
-
-  // Comissão RECEBIDA no mês = baseada na data em que foi marcada como paga
-  // (commissionPaidDate), não na data do romaneio. Um romaneio de junho
-  // pago em julho conta como recebido em julho, não em junho.
-  const comissaoMesRecebida = state.documents
-    .filter(d => {
-      if (d.type !== 'romaneio' || !d.commissionPaid || !d.commissionPaidDate) return false;
+  const vendasNoPeriodo = useMemo(() => {
+    const range = periodoVendas === 'hoje'
+      ? { start: startOfDay(now), end: endOfDay(now) }
+      : periodoVendas === 'semana'
+      ? { start: startOfWeek(now, { weekStartsOn: 0 }), end: endOfWeek(now, { weekStartsOn: 0 }) }
+      : { start: startOfMonth(now), end: endOfMonth(now) };
+    return state.documents.filter(d => {
+      if (d.type !== 'romaneio') return false;
       try {
-        return isWithinInterval(parseISO(d.commissionPaidDate), {
-          start: startOfMonth(now), end: endOfMonth(now),
-        });
+        return isWithinInterval(parseISO(d.date + 'T12:00:00'), range);
       } catch { return false; }
-    })
-    .reduce((s, d) => s + (d.myShareValue ?? d.commissionValue ?? 0), 0);
+    });
+  }, [state.documents, periodoVendas]);
 
-  // Comissão a receber TOTAL (todos os romaneios, não só do mês)
-  const comissaoAReceberTotal = state.documents
-    .filter(d => d.type === 'romaneio' && !d.commissionPaid)
-    .reduce((s, d) => s + (d.myShareValue ?? d.commissionValue ?? 0), 0);
-  const romaneiosComissaoPendente = state.documents
-    .filter(d => d.type === 'romaneio' && !d.commissionPaid && (d.myShareValue ?? d.commissionValue ?? 0) > 0).length;
+  const totalVendasPeriodo = vendasNoPeriodo.reduce((s, d) => s + d.total, 0);
+  const m3VendasPeriodo = vendasNoPeriodo.reduce((s, d) => s + (d.totalM3 || 0), 0);
 
   const marcarConcluido = async (id: string) => {
     const doc = state.documents.find(d => d.id === id);
@@ -73,41 +60,65 @@ export const Dashboard: React.FC = () => {
         <p className="text-gray-500 text-sm">Portal de Itaboraí — Gestão Comercial</p>
       </div>
 
+      {/* Vendas — Hoje / Semana / Mês */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-black text-gray-700 uppercase tracking-wider">💰 Vendas</h2>
+          <div className="flex gap-0.5 p-0.5 bg-gray-100 rounded-lg">
+            {([
+              { val: 'hoje', label: 'Hoje' },
+              { val: 'semana', label: 'Semana' },
+              { val: 'mes', label: 'Mês' },
+            ] as { val: 'hoje' | 'semana' | 'mes'; label: string }[]).map(p => (
+              <button key={p.val} onClick={() => setPeriodoVendas(p.val)}
+                className={['px-3 py-1.5 rounded-md text-xs font-bold transition-all',
+                  periodoVendas === p.val ? 'bg-green-700 text-white shadow' : 'text-gray-500 hover:bg-gray-200'].join(' ')}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Vendido</p>
+            <p className="text-xl font-black text-green-700">{fmt(totalVendasPeriodo)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Vendas</p>
+            <p className="text-xl font-black text-gray-900">{vendasNoPeriodo.length}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">M³ Vendidos</p>
+            <p className="text-xl font-black text-gray-900">{m3VendasPeriodo.toFixed(2)}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Romaneios no Mês</p>
-          <p className="text-2xl font-black text-gray-900">{romaneiosMes.length}</p>
-          <p className="text-[10px] text-gray-400">documentos</p>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-          className="bg-green-50 border border-green-200 rounded-xl p-4 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-green-600 mb-1">Comissão Recebida (Mês)</p>
-          <p className="text-xl font-black text-green-700">{fmt(comissaoMesRecebida)}</p>
-          <p className="text-[10px] text-green-500">já pago</p>
-        </motion.div>
-        <Link to="/relatorios?type=romaneio&commission=pendente">
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="bg-amber-50 border border-amber-300 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-amber-400 transition-all cursor-pointer h-full">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-1">Comissão a Receber →</p>
-            <p className="text-xl font-black text-amber-700">{fmt(comissaoAReceberTotal)}</p>
-            <p className="text-[10px] text-amber-500">{romaneiosComissaoPendente} romaneio{romaneiosComissaoPendente !== 1 ? 's' : ''} pendente{romaneiosComissaoPendente !== 1 ? 's' : ''}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Link to="/relatorios?type=pedido">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-amber-300 transition-all cursor-pointer h-full">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Orçamentos em Andamento</p>
+            <p className="text-2xl font-black text-gray-900">{pedidosAndamento.length}</p>
+            <p className="text-[10px] text-gray-400">aguardando confirmação</p>
           </motion.div>
         </Link>
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-          className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Pedidos em Andamento</p>
-          <p className="text-2xl font-black text-gray-900">{pedidosAndamento.length}</p>
-          <p className="text-[10px] text-gray-400">aguardando</p>
-        </motion.div>
+        <Link to="/relatorios?type=romaneio">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+            className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer h-full">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Vendas em Aberto</p>
+            <p className="text-2xl font-black text-gray-900">{romaneiosAberto.length}</p>
+            <p className="text-[10px] text-gray-400">pagamento pendente</p>
+          </motion.div>
+        </Link>
       </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {[
-          { to: '/pedidos/novo', icon: FileText, label: 'Novo Pedido', sub: 'Ordem para a fábrica', color: 'text-amber-600', bg: 'bg-amber-50' },
-          { to: '/romaneios/novo', icon: Truck, label: 'Novo Romaneio', sub: 'Dados de descarga', color: 'text-blue-600', bg: 'bg-blue-50' },
+          { to: '/pedidos/novo', icon: FileText, label: 'Novo Orçamento', sub: 'Proposta para o cliente', color: 'text-amber-600', bg: 'bg-amber-50' },
+          { to: '/romaneios/novo', icon: Truck, label: 'Nova Venda', sub: 'Venda com entrega', color: 'text-blue-600', bg: 'bg-blue-50' },
           { to: '/notas-entrega/novo', icon: Package, label: 'Nova Nota de Entrega', sub: 'Confirmação de itens', color: 'text-purple-600', bg: 'bg-purple-50' },
           { to: '/catalogo', icon: LayoutGrid, label: 'Catálogo', sub: 'Vender pelo estoque', color: 'text-orange-600', bg: 'bg-orange-50' },
           { to: '/clientes', icon: Users, label: 'Clientes', sub: 'Gestão de contatos', color: 'text-green-700', bg: 'bg-green-50' },
@@ -133,7 +144,7 @@ export const Dashboard: React.FC = () => {
             onClick={() => setShowPedidos(v => !v)}
             className="flex items-center gap-2 group"
           >
-            <h2 className="text-lg font-black text-gray-800">Pedidos em Andamento</h2>
+            <h2 className="text-lg font-black text-gray-800">Orçamentos em Andamento</h2>
             {pedidosAndamento.length > 0 && (
               <span className="bg-amber-100 text-amber-700 text-xs font-black px-2 py-0.5 rounded-full">
                 {pedidosAndamento.length}
@@ -225,7 +236,7 @@ export const Dashboard: React.FC = () => {
             onClick={() => setShowRomaneios(v => !v)}
             className="flex items-center gap-2 group"
           >
-            <h2 className="text-lg font-black text-gray-800">Romaneios em Aberto</h2>
+            <h2 className="text-lg font-black text-gray-800">Vendas em Aberto</h2>
             {romaneiosAberto.length > 0 && (
               <span className="bg-red-100 text-red-700 text-xs font-black px-2 py-0.5 rounded-full">
                 {romaneiosAberto.length}
