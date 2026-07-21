@@ -66,6 +66,11 @@ export const ItemCart: React.FC<Props> = ({
   const madeiraStock = stockItems.filter(s => s.categoria === 'madeira');
   const produtoStock = stockItems.filter(s => s.categoria !== 'madeira');
 
+  // Navegação por categoria dentro do modal — igual ao Catálogo, pra
+  // facilitar achar o produto certo entre vários itens cadastrados.
+  const [catBrowsing, setCatBrowsing] = useState<'porta' | 'batente' | 'outro' | null>(null);
+  const [addedFlash, setAddedFlash] = useState<string | null>(null);
+
   // Vínculo automático: se a bitola + largura digitadas baterem com um
   // item cadastrado no estoque (com essas medidas exatas), vincula sozinho
   // — sem precisar tocar num atalho manualmente. Isso é o que garante a
@@ -183,8 +188,10 @@ export const ItemCart: React.FC<Props> = ({
     onChangeProducts([...productItems, item]);
     setJustAddedId(item.id);
     setTimeout(() => setJustAddedId(null), 1500);
-    setAddOpen(false);
-    setSearch('');
+    // Modal continua aberto — mostra uma confirmação rápida em vez de
+    // fechar, assim dá pra adicionar vários itens seguidos sem reabrir.
+    setAddedFlash(s.descricao);
+    setTimeout(() => setAddedFlash(null), 1200);
   };
 
   const [manualDesc, setManualDesc] = useState('');
@@ -209,7 +216,23 @@ export const ItemCart: React.FC<Props> = ({
   };
 
   const filteredMadeiraStock = madeiraStock.filter(s => !search || s.descricao.toLowerCase().includes(search.toLowerCase()));
-  const filteredProdutoStock = produtoStock.filter(s => !search || s.descricao.toLowerCase().includes(search.toLowerCase()));
+  const buscaProdutoAtiva = search.trim().length > 0;
+  const filteredProdutoStock = produtoStock.filter(s => {
+    if (buscaProdutoAtiva) return s.descricao.toLowerCase().includes(search.toLowerCase());
+    if (catBrowsing) return s.categoria === catBrowsing;
+    return false; // sem busca nem categoria escolhida — mostra as pastas
+  });
+
+  const PRODUTO_CATEGORIAS = [
+    { val: 'porta' as const, label: 'Portas', emoji: '🚪', color: 'from-blue-500 to-blue-600' },
+    { val: 'batente' as const, label: 'Batentes', emoji: '🖼', color: 'from-purple-500 to-purple-600' },
+    { val: 'outro' as const, label: 'Outros', emoji: '📦', color: 'from-gray-500 to-gray-600' },
+  ];
+  const contagemProdutoCategoria = useMemo(() => {
+    const map: Record<string, number> = { porta: 0, batente: 0, outro: 0 };
+    for (const s of produtoStock) map[s.categoria] = (map[s.categoria] || 0) + 1;
+    return map;
+  }, [produtoStock]);
 
   return (
     <div className="space-y-3">
@@ -401,7 +424,7 @@ export const ItemCart: React.FC<Props> = ({
       {/* ── Modal: adicionar item ── */}
       {addOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center"
-          onClick={() => setAddOpen(false)}>
+          onClick={() => { setAddOpen(false); setCatBrowsing(null); setSearch(''); }}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[90vh] flex flex-col"
             onClick={e => e.stopPropagation()}>
 
@@ -409,19 +432,19 @@ export const ItemCart: React.FC<Props> = ({
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-black text-gray-900">Adicionar Item</h2>
-                <button onClick={() => setAddOpen(false)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg">
+                <button onClick={() => { setAddOpen(false); setCatBrowsing(null); setSearch(''); }} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => { setAddTab('madeira'); setSearch(''); }}
+                <button onClick={() => { setAddTab('madeira'); setSearch(''); setCatBrowsing(null); }}
                   className={[
                     'py-3 rounded-xl text-sm font-bold border-2 transition-all flex items-center justify-center gap-2',
                     addTab === 'madeira' ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-gray-200 text-gray-400'
                   ].join(' ')}>
                   <TreePine className="w-4 h-4" /> Madeira
                 </button>
-                <button onClick={() => { setAddTab('produto'); setSearch(''); }}
+                <button onClick={() => { setAddTab('produto'); setSearch(''); setCatBrowsing(null); }}
                   className={[
                     'py-3 rounded-xl text-sm font-bold border-2 transition-all flex items-center justify-center gap-2',
                     addTab === 'produto' ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-400'
@@ -575,37 +598,72 @@ export const ItemCart: React.FC<Props> = ({
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {/* Confirmação rápida — modal continua aberto */}
+                  {addedFlash && (
+                    <div className="bg-green-600 text-white rounded-xl p-3 flex items-center gap-2 animate-pulse">
+                      <Check className="w-4 h-4 flex-shrink-0" />
+                      <p className="text-xs font-bold truncate">"{addedFlash}" adicionado — pode continuar escolhendo</p>
+                    </div>
+                  )}
+
                   {/* Search stock */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
-                      placeholder="Buscar produto no estoque..."
-                      className="w-full pl-9 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+                  <div className="flex items-center gap-2">
+                    {catBrowsing && !buscaProdutoAtiva && (
+                      <button onClick={() => setCatBrowsing(null)}
+                        className="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex-shrink-0">
+                        <ChevronDown className="w-4 h-4 text-gray-500 rotate-90" />
+                      </button>
+                    )}
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
+                        placeholder="Buscar produto no estoque..."
+                        className="w-full pl-9 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+                    </div>
                   </div>
 
-                  {filteredProdutoStock.length > 0 && (
-                    <div className="space-y-1.5 max-h-56 overflow-y-auto">
-                      {filteredProdutoStock.map(s => {
-                        const isLow = (s.quantidadeMinima || 0) > 0 && s.quantidadeAtual <= (s.quantidadeMinima || 0);
-                        return (
-                          <button key={s.id} onClick={() => addFromProductStock(s)}
-                            className="w-full text-left px-3 py-2.5 hover:bg-blue-50 active:bg-blue-100 border border-gray-100 rounded-xl transition-colors flex items-center justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <p className="font-bold text-gray-800 text-sm truncate">{s.descricao}</p>
-                              <p className={['font-black text-base mt-0.5', isLow ? 'text-red-500' : 'text-green-700'].join(' ')}>
-                                {s.precoVenda ? fmt(s.precoVenda) : '—'} <span className="text-[10px] text-gray-400 font-normal">/{s.unidade}</span>
-                              </p>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className={['font-bold text-xs', isLow ? 'text-red-600' : 'text-gray-500'].join(' ')}>
-                                {s.quantidadeAtual} {s.unidade}
-                              </p>
-                              {isLow && <p className="text-[9px] text-red-500 font-bold">Baixo</p>}
-                            </div>
-                          </button>
-                        );
-                      })}
+                  {/* Nível 1: pastas de categoria — só quando não tem busca nem categoria aberta */}
+                  {!buscaProdutoAtiva && !catBrowsing && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {PRODUTO_CATEGORIAS.map(c => (
+                        <button key={c.val} onClick={() => setCatBrowsing(c.val)}
+                          className={`bg-gradient-to-br ${c.color} rounded-xl p-3 text-center shadow-sm hover:shadow-md active:scale-95 transition-all`}>
+                          <div className="text-2xl mb-1">{c.emoji}</div>
+                          <p className="text-white font-bold text-[11px]">{c.label}</p>
+                          <p className="text-white/70 text-[9px] font-bold">{contagemProdutoCategoria[c.val] || 0} itens</p>
+                        </button>
+                      ))}
                     </div>
+                  )}
+
+                  {/* Nível 2: produtos da categoria (ou resultado da busca) */}
+                  {(catBrowsing || buscaProdutoAtiva) && (
+                    filteredProdutoStock.length > 0 ? (
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                        {filteredProdutoStock.map(s => {
+                          const isLow = (s.quantidadeMinima || 0) > 0 && s.quantidadeAtual <= (s.quantidadeMinima || 0);
+                          return (
+                            <button key={s.id} onClick={() => addFromProductStock(s)}
+                              className="w-full text-left px-3 py-2.5 hover:bg-blue-50 active:bg-blue-100 border border-gray-100 rounded-xl transition-colors flex items-center justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-gray-800 text-sm truncate">{s.descricao}</p>
+                                <p className={['font-black text-base mt-0.5', isLow ? 'text-red-500' : 'text-green-700'].join(' ')}>
+                                  {s.precoVenda ? fmt(s.precoVenda) : '—'} <span className="text-[10px] text-gray-400 font-normal">/{s.unidade}</span>
+                                </p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className={['font-bold text-xs', isLow ? 'text-red-600' : 'text-gray-500'].join(' ')}>
+                                  {s.quantidadeAtual} {s.unidade}
+                                </p>
+                                {isLow && <p className="text-[9px] text-red-500 font-bold">Baixo</p>}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-center text-gray-400 text-xs py-6">Nenhum produto encontrado.</p>
+                    )
                   )}
 
                   <div className="border-t border-gray-100 pt-4 space-y-3">
