@@ -489,6 +489,11 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
    * serraria no pedido de compra).
    */
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  // Fluxo em 2 etapas (só pra Orçamento/Venda) — 1) monta o carrinho,
+  // 2) finalização com pagamento/parcelas, igual PDV profissional.
+  // Nota de Entrega continua numa tela só (não precisa dessa etapa).
+  const [step, setStep] = useState<'cart' | 'checkout'>('cart');
+  const usesCheckoutFlow = type === 'pedido' || type === 'romaneio';
   const [valorLiquidoDesejado, setValorLiquidoDesejado] = useState('');
   const [duplicating, setDuplicating] = useState(false);
   const duplicatingRef = React.useRef(false); // trava síncrona — evita corrida entre cliques rápidos
@@ -597,7 +602,7 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
 
   const handlePrintPaymentReport = () => {
     if (!doc.id) {
-      alert('Salve o romaneio primeiro para gerar o relatório de pagamento.');
+      alert('Salve a venda primeiro para gerar o relatório de pagamento.');
       return;
     }
     const win = window.open('', '_blank');
@@ -676,11 +681,11 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
                       <span className="w-3.5 h-3.5 border-2 border-green-700 border-t-transparent rounded-full animate-spin" />
                       Duplicando...
                     </>
-                  ) : '📋 Documento de referência'}
+                  ) : '📋 Já Concluído'}
                 </p>
                 {!duplicating && (
                   <p className="text-[11px] text-green-600 mt-0.5">
-                    Ex: pedido de compra na serraria com preço diferente. Já marca como <strong>Concluído</strong> — não vai aparecer na lista de pendências.
+                    Marca automaticamente como <strong>Concluído</strong> — não vai aparecer na lista de pendências.
                   </p>
                 )}
               </button>
@@ -690,9 +695,9 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
                 disabled={duplicating}
                 className="w-full text-left p-3 rounded-xl border-2 border-gray-200 hover:border-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <p className="text-sm font-bold text-gray-800">🆕 Novo pedido normal</p>
+                <p className="text-sm font-bold text-gray-800">🆕 Novo Documento</p>
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  Fica <strong>Em Andamento</strong>, como um pedido novo de verdade.
+                  Fica <strong>Em Andamento</strong>, como um documento novo de verdade.
                 </p>
               </button>
             </div>
@@ -793,7 +798,7 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-black text-green-800 capitalize leading-tight truncate">
-                {type === 'pedido' ? 'Pedido' : type === 'romaneio' ? 'Romaneio' : 'Nota de Entrega'} Nº {doc.number}
+                {type === 'pedido' ? 'Orçamento' : type === 'romaneio' ? 'Venda' : 'Nota de Entrega'} Nº {doc.number}
               </h1>
               {doc.woodType && (
                 <span className={[
@@ -929,33 +934,6 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
             ))}
           </div>
         </div>
-        {type === 'pedido' && (
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Destino do Pedido</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button type="button"
-                onClick={() => setDoc(p => ({ ...p, docPurpose: 'cliente' }))}
-                className={[
-                  'py-2 rounded-lg text-xs font-bold border-2 transition-all',
-                  (doc.docPurpose || 'cliente') === 'cliente'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                ].join(' ')}>
-                👤 Cliente
-              </button>
-              <button type="button"
-                onClick={() => setDoc(p => ({ ...p, docPurpose: 'serraria' }))}
-                className={[
-                  'py-2 rounded-lg text-xs font-bold border-2 transition-all',
-                  doc.docPurpose === 'serraria'
-                    ? 'border-purple-500 bg-purple-50 text-purple-700'
-                    : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                ].join(' ')}>
-                🏭 Serraria
-              </button>
-            </div>
-          </div>
-        )}
         <div className="space-y-1">
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Condição Pagamento</label>
           <div className="flex gap-1.5 mb-1.5">
@@ -1001,113 +979,6 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
               placeholder="Soma ao total"
               className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
           </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Comissão (%)</label>
-            <input type="number" value={doc.commissionPct ?? ''} onChange={e => setDoc(p => ({ ...p, commissionPct: parseFloat(e.target.value) || 0 }))}
-              className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
-          </div>
-          {type === 'romaneio' && (
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Valor Negociado c/ Serraria (R$)</label>
-              <input type="number" min="0" value={doc.serrariaBaseValue || ''}
-                onChange={e => setDoc(p => ({ ...p, serrariaBaseValue: parseFloat(e.target.value) || 0 }))}
-                placeholder="Deixe vazio se não houver parceiro"
-                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
-              <p className="text-[9px] text-gray-400">
-                Preencha o valor <strong>bruto</strong> (antes da comissão) — só quando o parceiro vendeu por preço diferente. A comissão passa a ser calculada sobre este valor, e a diferença até o total vira lucro extra do parceiro.
-              </p>
-
-              {/* Calculadora: líquido desejado → bruto a digitar */}
-              <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 border border-blue-100 rounded-lg">
-                <span className="text-[9px] font-bold text-blue-600 uppercase whitespace-nowrap">Sei só o líquido:</span>
-                <input type="number" min="0" value={valorLiquidoDesejado}
-                  onChange={e => setValorLiquidoDesejado(e.target.value)}
-                  placeholder="Ex: 22.921,68"
-                  className="flex-1 min-w-0 p-1.5 border border-blue-200 rounded text-xs outline-none focus:border-blue-500 bg-white" />
-                <button type="button"
-                  onClick={() => {
-                    const liquido = parseFloat(valorLiquidoDesejado) || 0;
-                    const pct = doc.commissionPct || 0;
-                    if (liquido <= 0 || pct <= 0) return;
-                    const bruto = liquido / (1 - pct / 100);
-                    setDoc(p => ({ ...p, serrariaBaseValue: Math.round(bruto * 100) / 100 }));
-                  }}
-                  disabled={!valorLiquidoDesejado || !doc.commissionPct}
-                  className="px-2.5 py-1.5 bg-blue-600 text-white rounded text-[10px] font-bold hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
-                  Calcular Bruto
-                </button>
-              </div>
-              {valorLiquidoDesejado && doc.commissionPct ? (
-                <p className="text-[9px] text-blue-500">
-                  {fmt(parseFloat(valorLiquidoDesejado) || 0)} líquido ÷ (1 − {doc.commissionPct}%) = {fmt((parseFloat(valorLiquidoDesejado) || 0) / (1 - (doc.commissionPct || 0) / 100))} bruto
-                </p>
-              ) : null}
-            </div>
-          )}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Vendedor Parceiro (opcional)</label>
-            <input value={doc.partnerName || ''} onChange={e => setDoc(p => ({ ...p, partnerName: e.target.value }))}
-              placeholder="Nome do parceiro..."
-              list="partner-suggestions"
-              className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
-            <datalist id="partner-suggestions">
-              {existingPartners.map(name => <option key={name} value={name} />)}
-            </datalist>
-          </div>
-          <div className="space-y-1 md:col-span-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Repasse ao Parceiro</label>
-              <div className="flex gap-1 p-0.5 bg-gray-100 rounded-lg">
-                <button type="button"
-                  onClick={() => setDoc(p => ({ ...p, partnerShareMode: 'percent' }))}
-                  className={[
-                    'px-2.5 py-1 rounded-md text-[10px] font-bold transition-all',
-                    (doc.partnerShareMode || 'percent') === 'percent'
-                      ? 'bg-white text-green-700 shadow-sm' : 'text-gray-400'
-                  ].join(' ')}>
-                  % Porcentagem
-                </button>
-                <button type="button"
-                  onClick={() => setDoc(p => ({ ...p, partnerShareMode: 'fixed' }))}
-                  className={[
-                    'px-2.5 py-1 rounded-md text-[10px] font-bold transition-all',
-                    doc.partnerShareMode === 'fixed'
-                      ? 'bg-white text-green-700 shadow-sm' : 'text-gray-400'
-                  ].join(' ')}>
-                  R$ Valor Exato
-                </button>
-              </div>
-            </div>
-            {(doc.partnerShareMode || 'percent') === 'percent' ? (
-              <input type="number" min="0" max="100" value={doc.partnerSharePct || ''}
-                onChange={e => setDoc(p => ({ ...p, partnerSharePct: parseFloat(e.target.value) || 0 }))}
-                placeholder="ex: 50 (%)"
-                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
-            ) : (
-              <>
-                <input type="number" min="0" value={doc.partnerShareFixed || ''}
-                  onChange={e => setDoc(p => ({ ...p, partnerShareFixed: parseFloat(e.target.value) || 0 }))}
-                  placeholder="ex: 350,00"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
-                <p className="text-[10px] text-gray-400">
-                  Valor exato que fica com o parceiro, direto em reais — útil quando ele vende por um preço diferente pro cliente dele.
-                </p>
-              </>
-            )}
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              Acerto escritório (R$) {usaValorServaria && <span className="text-purple-500 normal-case">— automático</span>}
-            </label>
-            {usaValorServaria ? (
-              <div className="w-full p-2.5 border border-purple-200 bg-purple-50 rounded-lg text-sm text-purple-800 font-bold">
-                {fmt(acertoDisplay)} <span className="font-normal text-purple-400 text-xs">(comissão + diferença do parceiro — deduzido do total no lugar da comissão separada)</span>
-              </div>
-            ) : (
-              <input type="number" value={doc.settlement || ''} onChange={e => setDoc(p => ({ ...p, settlement: parseFloat(e.target.value) || 0 }))}
-                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
-            )}
-          </div>
           {/* Extras */}
           <div className="space-y-2 md:col-span-2 lg:col-span-4">
             <div className="flex items-center justify-between">
@@ -1152,6 +1023,7 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
       </div>
 
       {/* ── Cliente + Carrinho unificado (madeira + produtos juntos) ── */}
+      {(!usesCheckoutFlow || step === 'cart') && (
       <div className="space-y-4">
         <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
@@ -1212,24 +1084,42 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
           productItems={doc.productItems || []}
           onChangeProducts={productItems => setDoc(p => ({ ...p, productItems }))}
         />
-      </div>
 
-      {/* Cheques — romaneio only */}
-      {type === 'romaneio' && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-          <ChequeTable
-            cheques={doc.cheques || []}
-            onChange={cheques => setDoc(p => ({ ...p, cheques }))}
-            total={total}
-            paymentTerms={doc.paymentTerms || ''}
-            docDate={doc.date || ''}
-            paymentMethod={doc.paymentMethod || 'cheque'}
-          />
-        </div>
+        {/* Botão de finalização — vai pra etapa de pagamento (Orçamento/Venda) */}
+        {usesCheckoutFlow && (
+          <button
+            onClick={() => setStep('checkout')}
+            disabled={!(doc.blocos?.[0]?.items?.length || doc.productItems?.length)}
+            className="w-full py-4 bg-gray-900 text-white rounded-xl text-base font-black hover:bg-black active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            Finalizar {type === 'pedido' ? 'Orçamento' : 'Venda'} — {fmt(total)} →
+          </button>
+        )}
+      </div>
+      )}
+
+      {/* ── Etapa de Finalização (Orçamento/Venda) — pagamento, parcelas, resumo ── */}
+      {usesCheckoutFlow && step === 'checkout' && (
+        <button onClick={() => setStep('cart')}
+          className="flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-gray-800 transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Voltar e editar itens
+        </button>
+      )}
+
+      {usesCheckoutFlow && step === 'checkout' && (
+      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+        <ChequeTable
+          cheques={doc.cheques || []}
+          onChange={cheques => setDoc(p => ({ ...p, cheques }))}
+          total={total}
+          paymentTerms={doc.paymentTerms || ''}
+          docDate={doc.date || ''}
+          paymentMethod={doc.paymentMethod || 'cheque'}
+        />
+      </div>
       )}
 
       {/* Payment tracking — only for saved romaneios */}
-      {type === 'romaneio' && id && (
+      {(!usesCheckoutFlow || step === 'checkout') && type === 'romaneio' && id && (
         <div>
           <div className="flex items-center justify-between mb-2 px-1">
             <h2 className="text-sm font-black text-gray-700 uppercase tracking-wider">
@@ -1257,6 +1147,7 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
       )}
 
       {/* Live totals */}
+      {(!usesCheckoutFlow || step === 'checkout') && (
       <div className="bg-green-700 text-white rounded-xl p-4 shadow-md">
         {blocos.length > 1 && (
           <div className="grid grid-cols-2 gap-2 mb-3 pb-3 border-b border-green-600">
@@ -1323,11 +1214,18 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
             <p className="text-2xl font-black text-yellow-300">{fmt(total)}</p>
           </div>
         </div>
-        <button onClick={handlePrint}
-          className="w-full py-3 bg-white text-green-800 rounded-lg font-black text-sm hover:bg-green-50 active:scale-95 transition-all flex items-center justify-center gap-2">
-          <Printer className="w-4 h-4" /> PDF / Compartilhar
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={handleSave}
+            className="py-3 bg-white text-green-800 rounded-lg font-black text-sm hover:bg-green-50 active:scale-95 transition-all flex items-center justify-center gap-2">
+            <Save className="w-4 h-4" /> Salvar {type === 'pedido' ? 'Orçamento' : 'Venda'}
+          </button>
+          <button onClick={handlePrint}
+            className="py-3 bg-green-800 text-white rounded-lg font-black text-sm hover:bg-green-900 active:scale-95 transition-all flex items-center justify-center gap-2 border border-green-500">
+            <Printer className="w-4 h-4" /> PDF / Compartilhar
+          </button>
+        </div>
       </div>
+      )}
     </div>
     </>
   );
