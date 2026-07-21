@@ -71,7 +71,7 @@ export interface Document {
   total: number;
   freight?: number;
   freightIcms?: number;   // ICMS do frete — soma ao total, não deduz
-  paymentMethod?: 'cheque' | 'dinheiro';  // forma das parcelas — cheque real ou dinheiro parcelado
+  paymentMethod?: 'cheque' | 'dinheiro' | 'boleto';  // forma das parcelas
   commissionPct: number;
   commissionValue: number;
   settlement?: number;
