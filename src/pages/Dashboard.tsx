@@ -115,24 +115,24 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {[
-          { to: '/pedidos/novo', icon: FileText, label: 'Novo Orçamento', sub: 'Proposta para o cliente', color: 'text-amber-600', bg: 'bg-amber-50' },
+          { to: '/pedidos/novo', icon: FileText, label: 'Orçamento', sub: 'Proposta para o cliente', color: 'text-amber-600', bg: 'bg-amber-50' },
           { to: '/romaneios/novo', icon: Truck, label: 'Nova Venda', sub: 'Venda com entrega', color: 'text-blue-600', bg: 'bg-blue-50' },
-          { to: '/notas-entrega/novo', icon: Package, label: 'Nova Nota de Entrega', sub: 'Confirmação de itens', color: 'text-purple-600', bg: 'bg-purple-50' },
+          { to: '/notas-entrega/novo', icon: Package, label: 'Nota de Entrega', sub: 'Confirmação de itens', color: 'text-purple-600', bg: 'bg-purple-50' },
           { to: '/catalogo', icon: LayoutGrid, label: 'Catálogo', sub: 'Vender pelo estoque', color: 'text-orange-600', bg: 'bg-orange-50' },
           { to: '/clientes', icon: Users, label: 'Clientes', sub: 'Gestão de contatos', color: 'text-green-700', bg: 'bg-green-50' },
         ].map(item => (
           <Link key={item.to} to={item.to}
-            className="group flex items-center gap-4 p-5 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-green-300 transition-all">
-            <div className={`w-12 h-12 ${item.bg} ${item.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0`}>
-              <item.icon className="w-6 h-6" />
+            className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-green-300 transition-all">
+            <div className={`w-11 h-11 ${item.bg} ${item.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0`}>
+              <item.icon className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-black text-gray-900">{item.label}</p>
-              <p className="text-xs text-gray-400">{item.sub}</p>
+              <p className="font-black text-gray-900 text-sm whitespace-nowrap">{item.label}</p>
+              <p className="text-[11px] text-gray-400 truncate">{item.sub}</p>
             </div>
-            <Plus className="w-4 h-4 text-gray-300 group-hover:text-green-600 transition-colors" />
+            <Plus className="w-4 h-4 text-gray-300 group-hover:text-green-600 transition-colors flex-shrink-0" />
           </Link>
         ))}
       </div>
