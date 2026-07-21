@@ -4,7 +4,8 @@ import { useApp } from '../store/AppContext';
 import { buildTabelaHTML } from '../lib/tabelaHTML';
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type Especie = 'pinus' | 'eucalipto';
+type Especie = 'pinus' | 'eucalipto' | 'porta' | 'aduela' | 'bloco';
+const SIMPLE_ESPECIES: Especie[] = ['porta', 'aduela', 'bloco'];
 
 interface PrecoRow {
   id: string;
@@ -14,11 +15,19 @@ interface PrecoRow {
   valorM3: number;
 }
 
+interface SimpleRow {
+  id: string;
+  descricao: string;
+  unidade: string;
+  valorUnitario: number;
+}
+
 interface TabelaPreco {
   id: string;
   nome: string;
   valorM3: number;
   rows: PrecoRow[];
+  simpleRows?: SimpleRow[];
   collapsed: boolean;
   descricao?: string;
   especie: Especie;
@@ -54,9 +63,45 @@ function newRow(valorM3 = 1400, especie: Especie = 'pinus'): PrecoRow {
   };
 }
 
+function newSimpleRow(): SimpleRow {
+  return {
+    id: Math.random().toString(36).slice(2, 9),
+    descricao: '',
+    unidade: 'un',
+    valorUnitario: 0,
+  };
+}
+
+const ESPECIE_LABEL: Record<Especie, string> = {
+  pinus: 'Pinus',
+  eucalipto: 'Eucalipto',
+  porta: 'Porta',
+  aduela: 'Aduela',
+  bloco: 'Bloco de Tijolo',
+};
+const ESPECIE_EMOJI: Record<Especie, string> = {
+  pinus: '🌲',
+  eucalipto: '🌳',
+  porta: '🚪',
+  aduela: '🖼',
+  bloco: '🧱',
+};
+
 function newTabela(valorM3 = 1400, especie: Especie = 'pinus'): TabelaPreco {
+  if (SIMPLE_ESPECIES.includes(especie)) {
+    return {
+      id: Math.random().toString(36).slice(2, 9),
+      nome: `${ESPECIE_LABEL[especie]} — Tabela de Preços`,
+      valorM3: 0,
+      collapsed: false,
+      descricao: '',
+      especie,
+      rows: [],
+      simpleRows: [newSimpleRow(), newSimpleRow(), newSimpleRow()],
+    };
+  }
   const comprimento = especie === 'eucalipto' ? 1 : 3;
-  const nomeEspecie = especie === 'eucalipto' ? 'Eucalipto' : 'Pinus';
+  const nomeEspecie = ESPECIE_LABEL[especie];
   return {
     id: Math.random().toString(36).slice(2, 9),
     nome: `${nomeEspecie} — R$ ${valorM3.toLocaleString('pt-BR')}/m³`,
@@ -80,7 +125,7 @@ function loadTabelasFromLS(): TabelaPreco[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       // Compatibilidade: tabelas antigas sem campo "especie" viram Pinus por padrão
-      return parsed.map((t: any) => ({ especie: 'pinus', ...t }));
+      return parsed.map((t: any) => ({ especie: 'pinus', rows: [], ...t }));
     }
   } catch {}
   return [newTabela(1400, 'pinus'), newTabela(1200, 'pinus')];
@@ -143,6 +188,24 @@ export const TabelaPrecos: React.FC = () => {
       : t
     ));
 
+  const updateSimpleRow = (tabelaId: string, rowId: string, patch: Partial<SimpleRow>) =>
+    save(tabelas.map(t => t.id === tabelaId
+      ? { ...t, simpleRows: (t.simpleRows || []).map(r => r.id === rowId ? { ...r, ...patch } : r) }
+      : t
+    ));
+
+  const addSimpleRow = (tabelaId: string) =>
+    save(tabelas.map(t => t.id === tabelaId
+      ? { ...t, simpleRows: [...(t.simpleRows || []), newSimpleRow()] }
+      : t
+    ));
+
+  const removeSimpleRow = (tabelaId: string, rowId: string) =>
+    save(tabelas.map(t => t.id === tabelaId
+      ? { ...t, simpleRows: (t.simpleRows || []).filter(r => r.id !== rowId) }
+      : t
+    ));
+
   const applyValorM3ToAll = (tabelaId: string, valorM3: number) =>
     save(tabelas.map(t => t.id === tabelaId
       ? {
@@ -189,41 +252,41 @@ export const TabelaPrecos: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Espécie</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setNewEspecie('pinus')}
-                  className={[
-                    'py-3 rounded-xl text-sm font-bold border-2 transition-all',
-                    newEspecie === 'pinus'
-                      ? 'border-amber-500 bg-amber-50 text-amber-700'
-                      : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                  ].join(' ')}>
-                  🌲 Pinus
-                </button>
-                <button type="button" onClick={() => setNewEspecie('eucalipto')}
-                  className={[
-                    'py-3 rounded-xl text-sm font-bold border-2 transition-all',
-                    newEspecie === 'eucalipto'
-                      ? 'border-red-400 bg-red-50 text-red-700'
-                      : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                  ].join(' ')}>
-                  🌳 Eucalipto
-                </button>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Categoria</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['pinus', 'eucalipto', 'porta', 'aduela', 'bloco'] as Especie[]).map(esp => (
+                  <button key={esp} type="button" onClick={() => setNewEspecie(esp)}
+                    className={[
+                      'py-3 rounded-xl text-xs font-bold border-2 transition-all',
+                      newEspecie === esp
+                        ? 'border-amber-500 bg-amber-50 text-amber-700'
+                        : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                    ].join(' ')}>
+                    {ESPECIE_EMOJI[esp]} {ESPECIE_LABEL[esp]}
+                  </button>
+                ))}
               </div>
               {newEspecie === 'eucalipto' && (
                 <p className="text-[10px] text-gray-400 pt-1">
                   Tabelas de eucalipto mostram o valor por <strong>1 metro corrido</strong>, sem as opções de 3/4/5/6m.
                 </p>
               )}
+              {SIMPLE_ESPECIES.includes(newEspecie) && (
+                <p className="text-[10px] text-gray-400 pt-1">
+                  Tabela simples — lista de descrição, unidade e preço, sem cálculo de m³.
+                </p>
+              )}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Valor do m³ (R$)</label>
-              <input type="number" value={newValorM3 || ''}
-                onChange={e => setNewValorM3(parseFloat(e.target.value) || 0)}
-                autoFocus
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-base font-bold text-center outline-none focus:border-green-600" />
-            </div>
+            {!SIMPLE_ESPECIES.includes(newEspecie) && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Valor do m³ (R$)</label>
+                <input type="number" value={newValorM3 || ''}
+                  onChange={e => setNewValorM3(parseFloat(e.target.value) || 0)}
+                  autoFocus
+                  className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-base font-bold text-center outline-none focus:border-green-600" />
+              </div>
+            )}
 
             <button onClick={confirmNewTabela}
               className="w-full py-3 bg-green-700 text-white rounded-xl font-bold hover:bg-green-800 transition-all active:scale-95">
@@ -236,12 +299,14 @@ export const TabelaPrecos: React.FC = () => {
       {/* Tables */}
       {tabelas.map(tabela => {
         const isEucalipto = tabela.especie === 'eucalipto';
+        const isSimple = SIMPLE_ESPECIES.includes(tabela.especie);
+        const headerColor = isEucalipto ? 'bg-red-700' : isSimple ? 'bg-purple-700' : 'bg-green-700';
         return (
         <div key={tabela.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           {/* Table header */}
           <div className={[
             'flex items-center justify-between px-4 py-3 gap-3',
-            isEucalipto ? 'bg-red-700' : 'bg-green-700'
+            headerColor
           ].join(' ')}>
             <div className="flex items-center gap-3 flex-1 min-w-0">
               {editingNome === tabela.id ? (
@@ -264,7 +329,7 @@ export const TabelaPrecos: React.FC = () => {
               ) : (
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <span className="text-[9px] font-black uppercase tracking-wider bg-white/20 text-white px-1.5 py-0.5 rounded flex-shrink-0">
-                    {isEucalipto ? '🌳 Eucalipto' : '🌲 Pinus'}
+                    {ESPECIE_EMOJI[tabela.especie]} {ESPECIE_LABEL[tabela.especie]}
                   </span>
                   <h2 className="font-black text-white text-base truncate">{tabela.nome}</h2>
                   <button onClick={() => { setEditingNome(tabela.id); setNomeTemp(tabela.nome); }}
@@ -301,7 +366,7 @@ export const TabelaPrecos: React.FC = () => {
 
           {/* Descricao mobile */}
           {!tabela.collapsed && (
-            <div className={['md:hidden px-4 py-2 border-b', isEucalipto ? 'bg-red-600 border-red-500' : 'bg-green-600 border-green-500'].join(' ')}>
+            <div className={['md:hidden px-4 py-2 border-b', isEucalipto ? 'bg-red-600 border-red-500' : isSimple ? 'bg-purple-600 border-purple-500' : 'bg-green-600 border-green-500'].join(' ')}>
               <input
                 value={tabela.descricao || ''}
                 onChange={e => updateTabela(tabela.id, { descricao: e.target.value })}
@@ -311,8 +376,8 @@ export const TabelaPrecos: React.FC = () => {
             </div>
           )}
 
-          {/* Valor m³ global control */}
-          {!tabela.collapsed && (
+          {/* Valor m³ global control — só pra tabelas de madeira */}
+          {!tabela.collapsed && !isSimple && (
             <div className={['flex items-center gap-3 px-4 py-2 border-b', isEucalipto ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'].join(' ')}>
               <span className={['text-xs font-bold uppercase tracking-wider whitespace-nowrap', isEucalipto ? 'text-red-700' : 'text-green-700'].join(' ')}>
                 Valor m³ desta tabela:
@@ -334,7 +399,60 @@ export const TabelaPrecos: React.FC = () => {
           {/* Table body */}
           {!tabela.collapsed && (
             <div className="overflow-x-auto">
-              {isEucalipto ? (
+              {isSimple ? (
+                // ── Tabela simples (Porta/Aduela/Bloco) — descrição + unidade + preço ──
+                <table className="w-full border-collapse text-xs" style={{ minWidth: 420 }}>
+                  <thead>
+                    <tr className="bg-purple-50 border-b-2 border-purple-200">
+                      <th className="border border-gray-200 px-2 py-2 text-left text-[11px] font-black text-gray-700">Descrição</th>
+                      <th className="border border-gray-200 px-2 py-2 text-center text-[11px] font-black text-gray-600 bg-gray-100 w-24">Unidade</th>
+                      <th className="border border-gray-200 px-2 py-2 text-center text-[11px] font-black text-purple-700 bg-purple-50 w-32">Preço Unit. (R$)</th>
+                      <th className="border border-gray-200 w-7 bg-gray-50"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(tabela.simpleRows || []).map((row, i) => (
+                      <tr key={row.id} className={i % 2 === 0 ? 'bg-white hover:bg-purple-50/20' : 'bg-gray-50/50 hover:bg-purple-50/20'}>
+                        <td className="border border-gray-200 p-1">
+                          <input value={row.descricao}
+                            onChange={e => updateSimpleRow(tabela.id, row.id, { descricao: e.target.value })}
+                            placeholder="Ex: Porta Mista 15 Almofadas 2,10x80"
+                            className="w-full text-xs bg-gray-100 border border-gray-200 rounded px-2 py-1.5 focus:bg-white focus:border-purple-600 outline-none" />
+                        </td>
+                        <td className="border border-gray-200 p-1">
+                          <input value={row.unidade}
+                            onChange={e => updateSimpleRow(tabela.id, row.id, { unidade: e.target.value })}
+                            className={INP_GRAY} placeholder="un" />
+                        </td>
+                        <td className="border border-gray-200 p-1 bg-purple-50">
+                          <input type="number" step="0.01" value={row.valorUnitario || ''}
+                            onChange={e => updateSimpleRow(tabela.id, row.id, { valorUnitario: parseFloat(e.target.value) || 0 })}
+                            className="w-full text-center text-xs bg-white border border-purple-200 rounded px-1 py-1.5 focus:border-purple-600 outline-none tabular-nums font-bold text-purple-800" />
+                        </td>
+                        <td className="border border-gray-200 p-1 text-center">
+                          <button onClick={() => removeSimpleRow(tabela.id, row.id)}
+                            className="p-1 text-gray-300 hover:text-red-500 transition-colors">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {(tabela.simpleRows || []).length === 0 && (
+                      <tr><td colSpan={4} className="text-center py-6 text-gray-400 italic text-sm">Nenhuma linha.</td></tr>
+                    )}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-purple-50 border-t-2 border-purple-200">
+                      <td colSpan={4} className="px-3 py-2">
+                        <button onClick={() => addSimpleRow(tabela.id)}
+                          className="flex items-center gap-1.5 text-xs font-bold text-purple-700 hover:text-purple-900 transition-colors">
+                          <Plus className="w-3.5 h-3.5" /> Adicionar linha
+                        </button>
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              ) : isEucalipto ? (
                 // ── Tabela Eucalipto — apenas valor por 1 metro corrido ──────────
                 <table className="w-full border-collapse text-xs" style={{ minWidth: 480 }}>
                   <thead>
