@@ -35,6 +35,9 @@ export const Estoque: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<StockItem>>(EMPTY);
+  // Modo de preço pra madeira: digitar por m³ (padrão) ou pelo valor de
+  // uma peça inteira — os dois convertem pro mesmo valor salvo (R$/m³).
+  const [priceMode, setPriceMode] = useState<'m3' | 'peca'>('m3');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [adjustModal, setAdjustModal] = useState<{ item: StockItem; tipo: 'entrada' | 'saida' } | null>(null);
   const [adjustQty, setAdjustQty] = useState('');
@@ -51,9 +54,9 @@ export const Estoque: React.FC = () => {
 
   const alertaBaixo = items.filter(i => (i.quantidadeMinima || 0) > 0 && i.quantidadeAtual <= (i.quantidadeMinima || 0));
 
-  const openNew = () => { setForm(EMPTY); setEditId(null); setShowForm(true); };
-  const openEdit = (item: StockItem) => { setForm({ ...item }); setEditId(item.id); setShowForm(true); };
-  const close = () => { setShowForm(false); setForm(EMPTY); setEditId(null); };
+  const openNew = () => { setForm(EMPTY); setEditId(null); setPriceMode('m3'); setShowForm(true); };
+  const openEdit = (item: StockItem) => { setForm({ ...item }); setEditId(item.id); setPriceMode('m3'); setShowForm(true); };
+  const close = () => { setShowForm(false); setForm(EMPTY); setEditId(null); setPriceMode('m3'); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,21 +266,61 @@ export const Estoque: React.FC = () => {
                     placeholder="Alerta"
                     className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    Preço Custo {form.categoria === 'madeira' && <span className="text-amber-500">(R$/m³)</span>}
-                  </label>
-                  <input type="number" step="0.01" value={form.precoCusto ?? ''}
-                    onChange={e => setForm(p => ({ ...p, precoCusto: parseFloat(e.target.value) || 0 }))}
-                    className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    Preço Venda {form.categoria === 'madeira' && <span className="text-amber-500">(R$/m³)</span>}
-                  </label>
-                  <input type="number" step="0.01" value={form.precoVenda ?? ''}
-                    onChange={e => setForm(p => ({ ...p, precoVenda: parseFloat(e.target.value) || 0 }))}
-                    className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
+                <div className="space-y-1 col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Preços</label>
+                    {form.categoria === 'madeira' && (
+                      <div className="flex gap-0.5 p-0.5 bg-gray-100 rounded-md">
+                        <button type="button" onClick={() => setPriceMode('m3')}
+                          className={['px-2 py-0.5 rounded text-[9px] font-bold transition-all',
+                            priceMode === 'm3' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-400'].join(' ')}>
+                          R$/m³
+                        </button>
+                        <button type="button" onClick={() => setPriceMode('peca')}
+                          disabled={!form.espessura || !form.largura || !form.comprimentoRef}
+                          className={['px-2 py-0.5 rounded text-[9px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed',
+                            priceMode === 'peca' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-400'].join(' ')}>
+                          R$/peça
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(() => {
+                      const m3Peca = form.categoria === 'madeira' && form.espessura && form.largura && form.comprimentoRef
+                        ? (form.espessura / 100) * (form.largura / 100) * form.comprimentoRef
+                        : 0;
+                      const showPeca = form.categoria === 'madeira' && priceMode === 'peca' && m3Peca > 0;
+
+                      return (
+                        <>
+                          <div className="space-y-0.5">
+                            <label className="text-[9px] text-gray-400">Custo {showPeca ? '(R$/peça)' : form.categoria === 'madeira' ? '(R$/m³)' : ''}</label>
+                            <input type="number" step="0.01"
+                              value={showPeca ? (form.precoCusto ? (form.precoCusto * m3Peca).toFixed(2) : '') : (form.precoCusto ?? '')}
+                              onChange={e => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setForm(p => ({ ...p, precoCusto: showPeca ? (m3Peca > 0 ? val / m3Peca : 0) : val }));
+                              }}
+                              className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
+                          </div>
+                          <div className="space-y-0.5">
+                            <label className="text-[9px] text-gray-400">Venda {showPeca ? '(R$/peça)' : form.categoria === 'madeira' ? '(R$/m³)' : ''}</label>
+                            <input type="number" step="0.01"
+                              value={showPeca ? (form.precoVenda ? (form.precoVenda * m3Peca).toFixed(2) : '') : (form.precoVenda ?? '')}
+                              onChange={e => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setForm(p => ({ ...p, precoVenda: showPeca ? (m3Peca > 0 ? val / m3Peca : 0) : val }));
+                              }}
+                              className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  {form.categoria === 'madeira' && priceMode === 'peca' && (!form.espessura || !form.largura || !form.comprimentoRef) && (
+                    <p className="text-[9px] text-amber-600">Preencha bitola, largura e comprimento de referência acima pra poder digitar por peça.</p>
+                  )}
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
