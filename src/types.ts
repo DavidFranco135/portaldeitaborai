@@ -19,6 +19,7 @@ export type CalcMode = 'qty_to_m3' | 'm3_to_qty';
 
 export interface TimberItem {
   id: string;
+  desc?: string;       // nome/descrição legível — "Tábua Pinus 30x1,8" (opcional, além das dimensões)
   espessura: number;   // cm
   largura: number;     // cm
   c3: number;
