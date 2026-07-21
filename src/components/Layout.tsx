@@ -3,7 +3,7 @@ import { NavLink, Link } from 'react-router-dom';
 import {
   Users, FileText, Truck, BarChart3, Settings,
   Cloud, CloudOff, RefreshCw, Menu, X, Home,
-  Table2, ChevronLeft, ChevronRight, Banknote, LogOut, Package, Archive, LayoutGrid,
+  Table2, ChevronLeft, ChevronRight, Banknote, LogOut, Package, Archive, LayoutGrid, DollarSign,
 } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { logout } from './Login';
@@ -16,12 +16,13 @@ function cn(...c: (string | boolean | undefined)[]) {
 const nav = [
   { path: '/', icon: Home, label: 'Dashboard', exact: true },
   { path: '/clientes', icon: Users, label: 'Clientes' },
-  { path: '/pedidos/novo', icon: FileText, label: 'Novo Pedido' },
-  { path: '/romaneios/novo', icon: Truck, label: 'Novo Romaneio' },
+  { path: '/pedidos/novo', icon: FileText, label: 'Novo Orçamento' },
+  { path: '/romaneios/novo', icon: Truck, label: 'Nova Venda' },
   { path: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { path: '/notas-entrega/novo', icon: Package, label: 'Nova Nota de Entrega' },
   { path: '/estoque', icon: Archive, label: 'Estoque' },
   { path: '/catalogo', icon: LayoutGrid, label: 'Catálogo' },
+  { path: '/financeiro', icon: DollarSign, label: 'Financeiro' },
   { path: '/tabela-precos', icon: Table2, label: 'Tabela Preços' },
   { path: '/cheques-devolvidos', icon: Banknote, label: 'Cheques Devolvidos' },
   { path: '/configuracoes', icon: Settings, label: 'Configurações' },
