@@ -137,9 +137,18 @@ export const Catalogo: React.FC = () => {
                 ].join(' ')}>
                 <div className="text-2xl mb-1.5">{cat?.emoji || '📦'}</div>
                 <p className="font-bold text-gray-800 text-xs leading-tight line-clamp-2 flex-1">{item.descricao}</p>
-                <p className="font-black text-green-700 text-sm mt-2">
-                  {item.precoVenda ? fmt(item.precoVenda) : '—'}
-                </p>
+                {item.categoria === 'madeira' && item.espessura && item.largura && item.comprimentoRef ? (
+                  <>
+                    <p className="font-black text-green-700 text-sm mt-2">
+                      {fmt((item.espessura / 100) * (item.largura / 100) * item.comprimentoRef * (item.precoVenda || 0))}
+                    </p>
+                    <p className="text-[9px] text-gray-400">1 peça {item.comprimentoRef}m · {fmt(item.precoVenda || 0)}/m³</p>
+                  </>
+                ) : (
+                  <p className="font-black text-green-700 text-sm mt-2">
+                    {item.precoVenda ? fmt(item.precoVenda) : '—'}
+                  </p>
+                )}
                 <div className="flex items-center justify-between mt-1">
                   <span className={['text-[10px] font-bold', isLow ? 'text-red-600' : 'text-gray-400'].join(' ')}>
                     {item.quantidadeAtual} {item.unidade}
@@ -169,10 +178,20 @@ export const Catalogo: React.FC = () => {
               <div>
                 <h2 className="text-base font-black text-gray-900">Adicionar a...</h2>
                 <p className="text-xs text-gray-500 truncate">{venderItem.descricao}</p>
-                <p className="text-sm font-black text-green-700 mt-0.5">
-                  {venderItem.precoVenda ? fmt(venderItem.precoVenda) : '—'}
-                  <span className="text-[10px] text-gray-400 font-normal"> /{venderItem.unidade}</span>
-                </p>
+                {venderItem.categoria === 'madeira' && venderItem.espessura && venderItem.largura && venderItem.comprimentoRef ? (
+                  <>
+                    <p className="text-sm font-black text-green-700 mt-0.5">
+                      {fmt((venderItem.espessura / 100) * (venderItem.largura / 100) * venderItem.comprimentoRef * (venderItem.precoVenda || 0))}
+                      <span className="text-[10px] text-gray-400 font-normal"> /peça ({venderItem.comprimentoRef}m)</span>
+                    </p>
+                    <p className="text-[10px] text-gray-400">{fmt(venderItem.precoVenda || 0)} /m³</p>
+                  </>
+                ) : (
+                  <p className="text-sm font-black text-green-700 mt-0.5">
+                    {venderItem.precoVenda ? fmt(venderItem.precoVenda) : '—'}
+                    <span className="text-[10px] text-gray-400 font-normal"> /{venderItem.unidade}</span>
+                  </p>
+                )}
               </div>
               <button onClick={() => setVenderItem(null)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg flex-shrink-0">
                 <X className="w-5 h-5" />
