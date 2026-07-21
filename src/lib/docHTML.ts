@@ -323,7 +323,9 @@ export function buildDocHTML(p: DocHTMLParams): string {
     '</td>' +
     '<td style="vertical-align:top;border-left:1px dashed #ccc;padding-left:12px">' +
     supplierRow + phoneRow +
-    '<div style="font-size:12px"><strong>COND. PAGTO:</strong> ' + (doc.paymentTerms || '—') + '</div>' +
+    '<div style="font-size:12px"><strong>COND. PAGTO:</strong> ' + (doc.paymentTerms || '—') +
+      (doc.paymentMethod ? ' — ' + (doc.paymentMethod === 'boleto' ? 'BOLETO' : doc.paymentMethod === 'dinheiro' ? 'DINHEIRO' : 'CHEQUE') : '') +
+    '</div>' +
     '<div style="font-size:12px"><strong>FRETE:</strong> ' + (doc.freight ? 'R$ ' + doc.freight.toLocaleString('pt-BR',{minimumFractionDigits:2}) : 'INCLUSO') + '</div>' +
     '</td></tr></table></div>' +
 
@@ -333,7 +335,7 @@ export function buildDocHTML(p: DocHTMLParams): string {
     (hasTimberItems ? tablesSections : '') + (productTableHTML ? '<div style="margin-top:16px"></div>' + productTableHTML : '');
 
   // Build cheques HTML string
-  const isDinheiro = doc.paymentMethod === 'dinheiro';
+  const parcelaLabel = doc.paymentMethod === 'boleto' ? 'boleto' : doc.paymentMethod === 'dinheiro' ? 'parcela' : 'cheque';
   const chequesHTML: string = cheques.length > 0 ? (
     '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
     '<thead><tr style="background:' + (eco ? "#fff" : "#1a5c34") + ';color:' + (eco ? C_DARK : "#fff") + ';border-bottom:2px solid ' + C_DARK + '">' +
@@ -351,7 +353,7 @@ export function buildDocHTML(p: DocHTMLParams): string {
       '</tr>'
     ).join('') +
     '</tbody><tfoot><tr style="background:' + (eco ? "#fff" : "#1a5c34") + ';color:' + (eco ? C_DARK : "#fff") + ';border-top:2px solid ' + C_DARK + '">' +
-    '<td colspan="3" style="padding:2px 5px;font-size:10px;font-weight:bold">' + cheques.length + (isDinheiro ? ' parcela' : ' cheque') + (cheques.length > 1 ? 's' : '') + '</td>' +
+    '<td colspan="3" style="padding:2px 5px;font-size:10px;font-weight:bold">' + cheques.length + ' ' + parcelaLabel + (cheques.length > 1 ? 's' : '') + '</td>' +
     '<td style="padding:2px 5px;text-align:right;font-weight:bold;font-size:12px">' + fmt(cheques.reduce((acc: number, c: Cheque) => acc + c.valor, 0)) + '</td>' +
     '</tr></tfoot></table>'
   ) : '';
@@ -361,7 +363,7 @@ export function buildDocHTML(p: DocHTMLParams): string {
     '<div style="margin-top:28px"></div>' +
     '<table style="margin-top:0;margin-bottom:8px"><tr>' +
     (chequesHTML ? ('<td style="width:55%;vertical-align:top;padding-right:12px">' +
-      '<div style="font-size:10px;font-weight:bold;text-transform:uppercase;color:#555;letter-spacing:1px;margin-bottom:4px">' + (isDinheiro ? 'Parcelas em Dinheiro' : 'Cheques / Parcelas') + '</div>' +
+      '<div style="font-size:10px;font-weight:bold;text-transform:uppercase;color:#555;letter-spacing:1px;margin-bottom:4px">' + (doc.paymentMethod === 'boleto' ? 'Boletos' : doc.paymentMethod === 'dinheiro' ? 'Parcelas em Dinheiro' : 'Cheques / Parcelas') + '</div>' +
       chequesHTML + '</td>') : '') +
     '<td style="vertical-align:top;' + (chequesHTML ? 'width:45%' : 'width:100%') + '">' +
     '<table style="border:2px solid ' + C_DARK + ';border-radius:6px;overflow:hidden;font-size:13px">' +
