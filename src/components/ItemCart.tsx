@@ -3,7 +3,7 @@ import { TimberItem, ProductItem, StockItem } from '../types';
 import { calcDerived, newEmptyItem } from '../lib/calc';
 import { useApp } from '../store/AppContext';
 import {
-  Plus, Minus, Trash2, Search, Package, X, TreePine, DoorOpen,
+  Plus, Minus, Trash2, Search, Package, X,
   ChevronDown, ChevronUp, Link2, Check,
 } from 'lucide-react';
 
@@ -49,7 +49,7 @@ export const ItemCart: React.FC<Props> = ({
   };
 
   const [addOpen, setAddOpen] = useState(false);
-  const [addTab, setAddTab] = useState<'madeira' | 'produto'>('madeira');
+  const [catBrowsing, setCatBrowsing] = useState<'madeira' | 'porta' | 'batente' | 'outro' | null>(null);
   const [search, setSearch] = useState('');
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
 
@@ -69,7 +69,6 @@ export const ItemCart: React.FC<Props> = ({
 
   // Navegação por categoria dentro do modal — igual ao Catálogo, pra
   // facilitar achar o produto certo entre vários itens cadastrados.
-  const [catBrowsing, setCatBrowsing] = useState<'porta' | 'batente' | 'outro' | null>(null);
   const [addedFlash, setAddedFlash] = useState<string | null>(null);
 
   // Vínculo automático: se a bitola + largura digitadas baterem com um
@@ -249,6 +248,13 @@ export const ItemCart: React.FC<Props> = ({
     for (const s of produtoStock) map[s.categoria] = (map[s.categoria] || 0) + 1;
     return map;
   }, [produtoStock]);
+
+  // Todas as categorias juntas — madeira + produtos — mostradas como uma
+  // grade única no topo do modal, igual a página Catálogo.
+  const TODAS_CATEGORIAS = [
+    { val: 'madeira' as const, label: 'Madeira', emoji: '🪵', color: 'from-amber-500 to-amber-600', count: madeiraStock.length },
+    ...PRODUTO_CATEGORIAS.map(c => ({ ...c, count: contagemProdutoCategoria[c.val] || 0 })),
+  ];
 
   return (
     <div className="space-y-3">
@@ -434,7 +440,7 @@ export const ItemCart: React.FC<Props> = ({
       )}
 
       {!readOnly && (
-        <button onClick={() => { setAddOpen(true); setSearch(''); }}
+        <button onClick={() => { setAddOpen(true); setSearch(''); setCatBrowsing(null); }}
           className="w-full flex items-center justify-center gap-2 py-4 bg-green-700 text-white rounded-xl text-base font-black hover:bg-green-800 active:scale-95 transition-all shadow-md">
           <Plus className="w-5 h-5" /> Adicionar Item
         </button>
@@ -447,43 +453,52 @@ export const ItemCart: React.FC<Props> = ({
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[90vh] flex flex-col"
             onClick={e => e.stopPropagation()}>
 
-            {/* Header + tabs */}
+            {/* Header */}
             <div className="p-4 border-b border-gray-100">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-black text-gray-900">Adicionar Item</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-black text-gray-900">
+                  {catBrowsing ? TODAS_CATEGORIAS.find(c => c.val === catBrowsing)?.label || 'Adicionar Item' : 'Adicionar Item'}
+                </h2>
                 <button onClick={() => { setAddOpen(false); setCatBrowsing(null); setSearch(''); }} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => { setAddTab('madeira'); setSearch(''); setCatBrowsing(null); }}
-                  className={[
-                    'py-3 rounded-xl text-sm font-bold border-2 transition-all flex items-center justify-center gap-2',
-                    addTab === 'madeira' ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-gray-200 text-gray-400'
-                  ].join(' ')}>
-                  <TreePine className="w-4 h-4" /> Madeira
-                </button>
-                <button onClick={() => { setAddTab('produto'); setSearch(''); setCatBrowsing(null); }}
-                  className={[
-                    'py-3 rounded-xl text-sm font-bold border-2 transition-all flex items-center justify-center gap-2',
-                    addTab === 'produto' ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-400'
-                  ].join(' ')}>
-                  <DoorOpen className="w-4 h-4" /> Produtos / Outros
-                </button>
-              </div>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-4">
-              {addTab === 'madeira' ? (
-                <div className="space-y-4">
-                  {/* Confirmação rápida — modal continua aberto */}
-                  {addedFlash && (
-                    <div className="bg-green-600 text-white rounded-xl p-3 flex items-center gap-2 animate-pulse">
-                      <Check className="w-4 h-4 flex-shrink-0" />
-                      <p className="text-xs font-bold truncate">"{addedFlash}" adicionado — pode continuar escolhendo</p>
-                    </div>
-                  )}
+            <div className="overflow-y-auto flex-1 p-4 space-y-4">
+              {/* Confirmação rápida — modal continua aberto, comum a todas as categorias */}
+              {addedFlash && (
+                <div className="bg-green-600 text-white rounded-xl p-3 flex items-center gap-2 animate-pulse">
+                  <Check className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-xs font-bold truncate">"{addedFlash}" adicionado — pode continuar escolhendo</p>
+                </div>
+              )}
 
+              {/* Nível 1: grade única de categorias (madeira + produtos), igual ao Catálogo */}
+              {!catBrowsing && (
+                <div className="grid grid-cols-2 gap-2.5">
+                  {TODAS_CATEGORIAS.map(c => (
+                    <button key={c.val} onClick={() => setCatBrowsing(c.val)}
+                      className={`bg-gradient-to-br ${c.color} rounded-2xl p-4 text-left shadow-sm hover:shadow-md active:scale-95 transition-all`}>
+                      <div className="text-3xl mb-1.5">{c.emoji}</div>
+                      <p className="text-white font-black text-sm">{c.label}</p>
+                      <p className="text-white/70 text-[10px] font-bold">{c.count} ite{c.count !== 1 ? 'ns' : 'm'}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Botão voltar — categoria escolhida */}
+              {catBrowsing && (
+                <button onClick={() => { setCatBrowsing(null); setSearch(''); }}
+                  className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-800 transition-colors">
+                  <ChevronDown className="w-3.5 h-3.5 rotate-90" /> Voltar às categorias
+                </button>
+              )}
+
+              {/* Categoria: Madeira */}
+              {catBrowsing === 'madeira' && (
+                <div className="space-y-4">
                   {/* Comprimento aplicado ao próximo item tocado na grade */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Comprimento (aplica ao tocar)</label>
@@ -500,37 +515,42 @@ export const ItemCart: React.FC<Props> = ({
                     </div>
                   </div>
 
+                  {/* Busca */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input value={search} onChange={e => setSearch(e.target.value)}
+                      placeholder="Buscar madeira no estoque..."
+                      className="w-full pl-9 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-amber-500" />
+                  </div>
+
                   {/* Grade do estoque — toca e adiciona direto, sem fechar o modal */}
-                  {madeiraStock.length > 0 ? (
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">📦 Toque para adicionar</label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {madeiraStock.map(s => {
-                          const isLow = (s.quantidadeMinima || 0) > 0 && s.quantidadeAtual <= (s.quantidadeMinima || 0);
-                          return (
-                            <button key={s.id} onClick={() => addFromMadeiraStock(s)}
-                              className="text-left p-2.5 rounded-xl border-2 border-gray-200 bg-white hover:border-amber-400 active:scale-95 transition-all">
-                              <p className="text-[11px] font-bold text-gray-700 leading-tight line-clamp-2">{s.descricao}</p>
-                              {s.espessura && s.largura && (
-                                <p className="text-[9px] text-gray-400 mt-0.5">{s.espessura}×{s.largura}cm</p>
-                              )}
-                              <p className="text-sm font-black text-green-700 mt-1">
-                                {s.precoVenda ? fmt(s.precoVenda) : '—'}
+                  {filteredMadeiraStock.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {filteredMadeiraStock.map(s => {
+                        const isLow = (s.quantidadeMinima || 0) > 0 && s.quantidadeAtual <= (s.quantidadeMinima || 0);
+                        return (
+                          <button key={s.id} onClick={() => addFromMadeiraStock(s)}
+                            className="text-left p-2.5 rounded-xl border-2 border-gray-200 bg-white hover:border-amber-400 active:scale-95 transition-all">
+                            <p className="text-[11px] font-bold text-gray-700 leading-tight line-clamp-2">{s.descricao}</p>
+                            {s.espessura && s.largura && (
+                              <p className="text-[9px] text-gray-400 mt-0.5">{s.espessura}×{s.largura}cm</p>
+                            )}
+                            <p className="text-sm font-black text-green-700 mt-1">
+                              {s.precoVenda ? fmt(s.precoVenda) : '—'}
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-[8px] text-gray-400">/m³</p>
+                              <p className={['text-[9px] font-bold', isLow ? 'text-red-500' : 'text-gray-400'].join(' ')}>
+                                {s.quantidadeAtual} disp.
                               </p>
-                              <div className="flex items-center justify-between">
-                                <p className="text-[8px] text-gray-400">/m³</p>
-                                <p className={['text-[9px] font-bold', isLow ? 'text-red-500' : 'text-gray-400'].join(' ')}>
-                                  {s.quantidadeAtual} disp.
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-center text-gray-400 text-xs py-4">
-                      Nenhuma madeira cadastrada no estoque ainda. Cadastre em <strong>Estoque → Novo Item</strong>, ou adicione com medida customizada abaixo.
+                      Nenhuma madeira {search ? 'encontrada' : 'cadastrada no estoque ainda'}. {!search && <>Cadastre em <strong>Estoque → Novo Item</strong>, ou adicione com medida customizada abaixo.</>}
                     </p>
                   )}
 
@@ -639,74 +659,44 @@ export const ItemCart: React.FC<Props> = ({
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Confirmação rápida — modal continua aberto */}
-                  {addedFlash && (
-                    <div className="bg-green-600 text-white rounded-xl p-3 flex items-center gap-2 animate-pulse">
-                      <Check className="w-4 h-4 flex-shrink-0" />
-                      <p className="text-xs font-bold truncate">"{addedFlash}" adicionado — pode continuar escolhendo</p>
-                    </div>
-                  )}
+              )}
 
-                  {/* Search stock */}
-                  <div className="flex items-center gap-2">
-                    {catBrowsing && !buscaProdutoAtiva && (
-                      <button onClick={() => setCatBrowsing(null)}
-                        className="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex-shrink-0">
-                        <ChevronDown className="w-4 h-4 text-gray-500 rotate-90" />
-                      </button>
-                    )}
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
-                        placeholder="Buscar produto no estoque..."
-                        className="w-full pl-9 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
-                    </div>
+              {/* Categorias de produto: Porta / Batente / Outro */}
+              {(catBrowsing === 'porta' || catBrowsing === 'batente' || catBrowsing === 'outro') && (
+                <div className="space-y-4">
+                  {/* Busca */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
+                      placeholder="Buscar produto no estoque..."
+                      className="w-full pl-9 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
                   </div>
 
-                  {/* Nível 1: pastas de categoria — só quando não tem busca nem categoria aberta */}
-                  {!buscaProdutoAtiva && !catBrowsing && (
-                    <div className="grid grid-cols-3 gap-2">
-                      {PRODUTO_CATEGORIAS.map(c => (
-                        <button key={c.val} onClick={() => setCatBrowsing(c.val)}
-                          className={`bg-gradient-to-br ${c.color} rounded-xl p-3 text-center shadow-sm hover:shadow-md active:scale-95 transition-all`}>
-                          <div className="text-2xl mb-1">{c.emoji}</div>
-                          <p className="text-white font-bold text-[11px]">{c.label}</p>
-                          <p className="text-white/70 text-[9px] font-bold">{contagemProdutoCategoria[c.val] || 0} itens</p>
-                        </button>
-                      ))}
+                  {filteredProdutoStock.length > 0 ? (
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                      {filteredProdutoStock.map(s => {
+                        const isLow = (s.quantidadeMinima || 0) > 0 && s.quantidadeAtual <= (s.quantidadeMinima || 0);
+                        return (
+                          <button key={s.id} onClick={() => addFromProductStock(s)}
+                            className="w-full text-left px-3 py-2.5 hover:bg-blue-50 active:bg-blue-100 border border-gray-100 rounded-xl transition-colors flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-gray-800 text-sm truncate">{s.descricao}</p>
+                              <p className={['font-black text-base mt-0.5', isLow ? 'text-red-500' : 'text-green-700'].join(' ')}>
+                                {s.precoVenda ? fmt(s.precoVenda) : '—'} <span className="text-[10px] text-gray-400 font-normal">/{s.unidade}</span>
+                              </p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className={['font-bold text-xs', isLow ? 'text-red-600' : 'text-gray-500'].join(' ')}>
+                                {s.quantidadeAtual} {s.unidade}
+                              </p>
+                              {isLow && <p className="text-[9px] text-red-500 font-bold">Baixo</p>}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
-
-                  {/* Nível 2: produtos da categoria (ou resultado da busca) */}
-                  {(catBrowsing || buscaProdutoAtiva) && (
-                    filteredProdutoStock.length > 0 ? (
-                      <div className="space-y-1.5 max-h-56 overflow-y-auto">
-                        {filteredProdutoStock.map(s => {
-                          const isLow = (s.quantidadeMinima || 0) > 0 && s.quantidadeAtual <= (s.quantidadeMinima || 0);
-                          return (
-                            <button key={s.id} onClick={() => addFromProductStock(s)}
-                              className="w-full text-left px-3 py-2.5 hover:bg-blue-50 active:bg-blue-100 border border-gray-100 rounded-xl transition-colors flex items-center justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="font-bold text-gray-800 text-sm truncate">{s.descricao}</p>
-                                <p className={['font-black text-base mt-0.5', isLow ? 'text-red-500' : 'text-green-700'].join(' ')}>
-                                  {s.precoVenda ? fmt(s.precoVenda) : '—'} <span className="text-[10px] text-gray-400 font-normal">/{s.unidade}</span>
-                                </p>
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                <p className={['font-bold text-xs', isLow ? 'text-red-600' : 'text-gray-500'].join(' ')}>
-                                  {s.quantidadeAtual} {s.unidade}
-                                </p>
-                                {isLow && <p className="text-[9px] text-red-500 font-bold">Baixo</p>}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-center text-gray-400 text-xs py-6">Nenhum produto encontrado.</p>
-                    )
+                  ) : (
+                    <p className="text-center text-gray-400 text-xs py-6">Nenhum produto encontrado.</p>
                   )}
 
                   <div className="border-t border-gray-100 pt-4 space-y-3">
