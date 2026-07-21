@@ -75,6 +75,7 @@ export function buildDocHTML(p: DocHTMLParams): string {
       const bg = i % 2 === 0 ? ROW1 : ROW2;
       return (
         '<tr style="background:' + bg + '">' +
+        '<td style="' + TD + ';text-align:left;padding-left:8px;font-weight:bold">' + (item.desc || '—') + '</td>' +
         '<td style="' + TD + '">' + item.espessura + '</td>' +
         '<td style="' + TD + '">' + item.largura + '</td>' +
         '<td style="' + TD + ';background:#e8f5ee">' + (item.c3 || '') + '</td>' +
@@ -94,7 +95,7 @@ export function buildDocHTML(p: DocHTMLParams): string {
     const empty = Array.from({ length: minEmpty }).map((_, i) => {
       const bg = (rows.length + i) % 2 === 0 ? ROW1 : ROW2;
       return '<tr style="background:' + bg + '">' +
-        Array.from({ length: 12 }).map(() => '<td style="' + TD + ';height:20px"></td>').join('') +
+        Array.from({ length: 13 }).map(() => '<td style="' + TD + ';height:20px"></td>').join('') +
         '</tr>';
     });
     return rows.join('') + empty.join('');
@@ -120,6 +121,7 @@ export function buildDocHTML(p: DocHTMLParams): string {
       '<table style="margin-bottom:4px;font-size:12px">' +
       '<thead>' +
       '<tr style="background:' + TH_BG + ';color:' + TH_TXT + '">' +
+      '<th style="' + TH + ';text-align:left;padding-left:8px" rowspan="2">Descrição</th>' +
       '<th style="' + TH + '" rowspan="2">Bitola<br>(cm)</th>' +
       '<th style="' + TH + '" rowspan="2">Larg.<br>(cm)</th>' +
       '<th style="' + TH + ';background:' + TH_MED + ';color:' + TH_TXT + ';font-size:10px;letter-spacing:0.5px" colspan="4">Comprimento (m) — Qtd de Peças</th>' +
@@ -135,7 +137,7 @@ export function buildDocHTML(p: DocHTMLParams): string {
       '</tr></thead>' +
       '<tbody>' + buildItemRows(items) + '</tbody>' +
       '<tfoot><tr style="background:' + TOT_BG + ';color:' + TOT_T + ';font-weight:bold;border-top:3px solid ' + C_GOLD + '">' +
-      '<td colspan="6" style="' + TD + '"></td>' +
+      '<td colspan="7" style="' + TD + '"></td>' +
       '<td style="' + TD + ';text-align:center;font-size:14px">' + qtyT + '</td>' +
       '<td colspan="3" style="' + TD + '"></td>' +
       '<td style="border:1px solid rgba(255,255,255,0.2);padding:3px 6px;text-align:right;font-size:12px;color:' + (eco ? '#555' : 'rgba(255,255,255,0.7)') + '">Total m³: <span style="color:' + TOT_T + ';font-weight:900;font-size:16px">' + m3T.toFixed(3) + '</span></td>' +
