@@ -948,6 +948,16 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
               🏦 Cheque
             </button>
             <button type="button"
+              onClick={() => setDoc(p => ({ ...p, paymentMethod: 'boleto' }))}
+              className={[
+                'flex-1 py-1.5 rounded-lg text-[11px] font-bold border-2 transition-all',
+                doc.paymentMethod === 'boleto'
+                  ? 'border-orange-500 bg-orange-50 text-orange-700'
+                  : 'border-gray-200 text-gray-400 hover:border-gray-300'
+              ].join(' ')}>
+              🧾 Boleto
+            </button>
+            <button type="button"
               onClick={() => setDoc(p => ({ ...p, paymentMethod: 'dinheiro' }))}
               className={[
                 'flex-1 py-1.5 rounded-lg text-[11px] font-bold border-2 transition-all',
