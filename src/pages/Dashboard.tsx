@@ -69,7 +69,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6 pb-24 md:pb-0">
       <div>
-        <h1 className="text-2xl font-black text-green-800">Bem-vindo, David!</h1>
+        <h1 className="text-2xl font-black text-green-800">Bem-vindo!</h1>
         <p className="text-gray-500 text-sm">Portal de Itaboraí — Gestão Comercial</p>
       </div>
 
