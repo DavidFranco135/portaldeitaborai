@@ -52,6 +52,7 @@ export function buildDeliveryNoteHTML(doc: Document, client: Record<string, any>
     const bg = i % 2 === 0 ? '#fff' : C_SAGE;
     return (
       '<tr style="background:' + bg + '">' +
+      '<td style="border:1px solid #ccc;padding:6px 8px;text-align:left;font-size:12px;font-weight:bold">' + (it.desc || '—') + '</td>' +
       '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center;font-size:12px">' + it.espessura + '</td>' +
       '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center;font-size:12px">' + it.largura + '</td>' +
       '<td style="border:1px solid #ccc;padding:6px 8px;text-align:center;font-size:12px">' + c.comp + 'm</td>' +
@@ -89,6 +90,7 @@ export function buildDeliveryNoteHTML(doc: Document, client: Record<string, any>
     ? '<div style="font-size:11px;font-weight:900;color:' + C_DARK + ';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">🪵 Madeira</div>' +
       '<table style="margin-bottom:16px">' +
       '<thead><tr style="background:' + C_DARK + ';color:#fff">' +
+      '<th style="padding:7px 6px;font-size:11px;text-align:left;padding-left:8px">Descrição</th>' +
       '<th style="padding:7px 6px;font-size:11px">Bitola<br/>(cm)</th>' +
       '<th style="padding:7px 6px;font-size:11px">Larg.<br/>(cm)</th>' +
       '<th style="padding:7px 6px;font-size:11px">Compr.</th>' +
@@ -100,7 +102,7 @@ export function buildDeliveryNoteHTML(doc: Document, client: Record<string, any>
       '</tr></thead>' +
       '<tbody>' + timberRows + '</tbody>' +
       '<tfoot><tr style="background:' + C_DARK + ';color:#fff;font-weight:900;border-top:3px solid ' + C_GOLD + '">' +
-      '<td colspan="6" style="padding:7px 8px;text-align:right;font-size:12px">TOTAL MADEIRA →</td>' +
+      '<td colspan="7" style="padding:7px 8px;text-align:right;font-size:12px">TOTAL MADEIRA →</td>' +
       '<td style="padding:7px 8px;text-align:center;font-size:13px;background:' + C_GOLD + ';color:' + C_DARK + '">' + timberM3Total.toFixed(3) + '</td>' +
       '<td style="padding:7px 8px;text-align:right;font-size:13px;background:' + C_GOLD + ';color:' + C_DARK + '">' + fmt(timberValueTotal) + '</td>' +
       '</tr></tfoot>' +
