@@ -80,6 +80,7 @@ export interface Document {
   motorista?: string;
   supplier?: string;
   woodType?: 'pinus' | 'eucalipto' | 'outro';
+  categorias?: string[];  // detectado automaticamente pelos itens do carrinho — 'madeira', 'porta', 'batente', 'aduela', 'bloco', 'outro'
   status?: 'andamento' | 'concluido';
   stockBaixado?: boolean;   // true quando o estoque já foi descontado (evita baixar duas vezes)
   extras?: Array<{ id: string; desc: string; valor: number; op: '+' | '-' }>;
