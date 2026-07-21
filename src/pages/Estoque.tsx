@@ -21,7 +21,7 @@ const UNIDADES = ['m³', 'un', 'pc', 'par', 'm', 'm²', 'cx'];
 
 const EMPTY: Partial<StockItem> = {
   categoria: 'madeira',
-  unidade: 'un',
+  unidade: 'm³',
   quantidadeAtual: 0,
 };
 
@@ -162,7 +162,8 @@ export const Estoque: React.FC = () => {
                 <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Categoria</label>
                 <div className="grid grid-cols-4 gap-1.5">
                   {CATEGORIAS.map(c => (
-                    <button key={c.val} type="button" onClick={() => setForm(p => ({ ...p, categoria: c.val }))}
+                    <button key={c.val} type="button"
+                      onClick={() => setForm(p => ({ ...p, categoria: c.val, unidade: c.val === 'madeira' ? 'm³' : (p.unidade === 'm³' ? 'un' : p.unidade) }))}
                       className={[
                         'py-2 rounded-lg text-[10px] font-bold border-2 transition-all',
                         form.categoria === c.val ? 'border-green-600 bg-green-50 text-green-800' : 'border-gray-200 text-gray-400'
@@ -202,13 +203,21 @@ export const Estoque: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Unidade</label>
-                  <select value={form.unidade || 'un'} onChange={e => setForm(p => ({ ...p, unidade: e.target.value }))}
-                    className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none">
-                    {UNIDADES.map(u => <option key={u} value={u}>{u}</option>)}
-                  </select>
+                  {form.categoria === 'madeira' ? (
+                    <div className="w-full p-2.5 border border-amber-200 bg-amber-50 rounded-lg text-sm font-bold text-amber-700 text-center">
+                      m³ (fixo p/ madeira)
+                    </div>
+                  ) : (
+                    <select value={form.unidade || 'un'} onChange={e => setForm(p => ({ ...p, unidade: e.target.value }))}
+                      className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none">
+                      {UNIDADES.filter(u => u !== 'm³').map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  )}
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Quantidade Atual</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Quantidade Atual {form.categoria === 'madeira' && <span className="text-amber-500">(m³)</span>}
+                  </label>
                   <input type="number" step="0.001" value={form.quantidadeAtual ?? ''}
                     onChange={e => setForm(p => ({ ...p, quantidadeAtual: parseFloat(e.target.value) || 0 }))}
                     className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
@@ -223,13 +232,17 @@ export const Estoque: React.FC = () => {
                     className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Preço Custo</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Preço Custo {form.categoria === 'madeira' && <span className="text-amber-500">(R$/m³)</span>}
+                  </label>
                   <input type="number" step="0.01" value={form.precoCusto ?? ''}
                     onChange={e => setForm(p => ({ ...p, precoCusto: parseFloat(e.target.value) || 0 }))}
                     className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Preço Venda</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Preço Venda {form.categoria === 'madeira' && <span className="text-amber-500">(R$/m³)</span>}
+                  </label>
                   <input type="number" step="0.01" value={form.precoVenda ?? ''}
                     onChange={e => setForm(p => ({ ...p, precoVenda: parseFloat(e.target.value) || 0 }))}
                     className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
