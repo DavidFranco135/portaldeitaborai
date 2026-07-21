@@ -55,6 +55,7 @@ export const ItemCart: React.FC<Props> = ({
 
   // Madeira form state (dentro do modal de adicionar)
   const [mEsp, setMEsp] = useState('');
+  const [mDesc, setMDesc] = useState('');
   const [mLarg, setMLarg] = useState('');
   const [mComp, setMComp] = useState<typeof COMPS[number]>(3);
   const [mQty, setMQty] = useState('');
@@ -86,6 +87,7 @@ export const ItemCart: React.FC<Props> = ({
     if (autoMatchedStock) {
       setMStockId(autoMatchedStock.id);
       if (autoMatchedStock.precoVenda && !mPreco) setMPreco(String(autoMatchedStock.precoVenda));
+      if (!mDesc) setMDesc(autoMatchedStock.descricao);
     } else if (mStockId && !madeiraStock.some(s => s.id === mStockId)) {
       setMStockId(undefined);
     }
@@ -146,18 +148,20 @@ export const ItemCart: React.FC<Props> = ({
     item.espessura = esp;
     item.largura = larg;
     item.pricePerM3 = preco;
+    item.desc = mDesc.trim() || undefined;
     (item as any)[`c${mComp}`] = qty;
     if (mStockId) (item as any).stockItemId = mStockId;
 
     onChangeTimber([...timberItems, item]);
     setJustAddedId(item.id);
     setTimeout(() => setJustAddedId(null), 1500);
-    setMEsp(''); setMLarg(''); setMQty(''); setMPreco(''); setMPrecoPeca(''); setMStockId(undefined);
+    setMEsp(''); setMLarg(''); setMQty(''); setMPreco(''); setMPrecoPeca(''); setMStockId(undefined); setMDesc('');
     setAddOpen(false);
   };
 
   const pickMadeiraStock = (s: StockItem) => {
     setMStockId(s.id);
+    setMDesc(s.descricao);
     if (s.precoVenda) {
       setMPreco(String(s.precoVenda));
       if (mPriceMode === 'peca' && s.espessura && s.largura) {
@@ -257,9 +261,12 @@ export const ItemCart: React.FC<Props> = ({
                 </div>
                 <div className="flex-1 min-w-0 pt-1">
                   <p className="font-bold text-gray-800 text-sm">
-                    {item.espessura}×{item.largura}cm — {comp}m
+                    {item.desc || `${item.espessura}×${item.largura}cm — ${comp}m`}
                     {(item as any).stockItemId && <Link2 className="w-3 h-3 inline ml-1 text-purple-500" />}
                   </p>
+                  {item.desc && (
+                    <p className="text-[10px] text-gray-400">{item.espessura}×{item.largura}cm — {comp}m</p>
+                  )}
                   {timberStockWarning && (
                     <p className="text-[10px] text-red-600 font-bold flex items-center gap-1 mt-0.5">
                       ⚠ Estoque insuficiente — disponível: {timberStockWarning.disponivel} {timberStockWarning.unidade}
@@ -487,10 +494,17 @@ export const ItemCart: React.FC<Props> = ({
                     </div>
                   )}
 
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nome / Descrição (opcional)</label>
+                    <input autoFocus value={mDesc} onChange={e => setMDesc(e.target.value)}
+                      placeholder="Ex: Tábua Pinus 30x1,8"
+                      className="w-full p-3 border-2 border-gray-200 rounded-xl text-sm font-bold focus:border-amber-500 outline-none" />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bitola (cm)</label>
-                      <input type="number" step="0.1" autoFocus value={mEsp} onChange={e => setMEsp(e.target.value)}
+                      <input type="number" step="0.1" value={mEsp} onChange={e => setMEsp(e.target.value)}
                         placeholder="1,8"
                         className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
                     </div>
