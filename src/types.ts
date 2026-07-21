@@ -171,6 +171,7 @@ export interface StockItem {
   unidade: string;               // 'm³', 'un', 'pc', 'par', etc.
   espessura?: number;            // bitola (cm) — só pra categoria "madeira", permite vínculo automático
   largura?: number;              // largura (cm) — só pra categoria "madeira", permite vínculo automático
+  comprimentoRef?: number;       // comprimento de referência (m) — usado só pra calcular e mostrar o valor da peça (3m, 4m, etc.)
   quantidadeAtual: number;
   quantidadeMinima?: number;     // alerta de estoque baixo
   precoCusto?: number;
