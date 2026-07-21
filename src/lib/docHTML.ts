@@ -40,6 +40,10 @@ interface DocHTMLParams {
 export function buildDocHTML(p: DocHTMLParams): string {
   const { doc, type, totals, commission, total, displayDate, client, settings: s, cheques = [], blocos = [], eco = false, extras = [], extrasTotal = 0, productItems = [] } = p;
 
+  // Nome de exibição do tipo de documento (o valor interno "pedido"/
+  // "romaneio" continua igual em todo o sistema, só o texto mostrado muda)
+  const typeLabel = type === 'pedido' ? 'ORÇAMENTO' : type === 'romaneio' ? 'VENDA' : String(type).toUpperCase();
+
   // Eco overrides — white backgrounds, only text/borders in color
   const H_BG   = eco ? '#fff' : C_DARK;      // header bg
   const H_TXT  = eco ? C_DARK : '#fff';       // header text
@@ -259,7 +263,7 @@ export function buildDocHTML(p: DocHTMLParams): string {
     '<head>\n' +
     '<meta charset="UTF-8"/>\n' +
     '<meta name="viewport" content="width=device-width, initial-scale=1.0"/>\n' +
-    '<title>' + type.toUpperCase() + ' No ' + doc.number + '</title>\n' +
+    '<title>' + typeLabel + ' No ' + doc.number + '</title>\n' +
     '<style>\n' +
     '  @page { size: A4 portrait; margin: 8mm; }\n' +
     '  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }\n' +
@@ -303,7 +307,7 @@ export function buildDocHTML(p: DocHTMLParams): string {
     '<div style="font-size:12px;color:' + (eco ? '#555' : '#d1fae5') + '">TEL: ' + s.companyPhone + ' | CNPJ: ' + s.companyCNPJ + ' | ' + s.companyEmail + '</div>' +
     '</td>' +
     '<td style="vertical-align:middle;text-align:right;padding-left:12px;white-space:nowrap">' +
-    '<div style="display:inline-block;background:#fff;color:#1a5c34;font-weight:900;font-size:26px;padding:6px 18px;text-transform:uppercase;border-radius:6px;margin-bottom:6px">' + type.toUpperCase() + '</div>' +
+    '<div style="display:inline-block;background:#fff;color:#1a5c34;font-weight:900;font-size:26px;padding:6px 18px;text-transform:uppercase;border-radius:6px;margin-bottom:6px">' + typeLabel + '</div>' +
     '<div style="color:' + (eco ? C_MED : '#a7f3c0') + ';font-size:13px;font-weight:bold">DATA: <span style="color:' + H_TXT + '">' + displayDate + '</span></div>' +
     '<div style="color:' + (eco ? C_MED : '#a7f3c0') + ';font-size:13px;font-weight:bold">N&ordm; <span style="color:' + H_TXT + ';font-size:21px;font-weight:900">' + doc.number + '</span></div>' +
     '</td></tr></table></div>' +
