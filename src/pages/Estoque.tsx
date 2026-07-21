@@ -195,7 +195,7 @@ export const Estoque: React.FC = () => {
                   className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
               </div>
               {form.categoria === 'madeira' && (
-                <div className="grid grid-cols-2 gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <div className="grid grid-cols-3 gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Bitola (cm)</label>
                     <input type="number" step="0.1" value={form.espessura ?? ''}
@@ -210,9 +210,26 @@ export const Estoque: React.FC = () => {
                       placeholder="ex: 30"
                       className="w-full p-2.5 border border-amber-300 rounded-lg text-sm focus:border-amber-600 outline-none bg-white" />
                   </div>
-                  <p className="col-span-2 text-[10px] text-amber-600">
-                    Preenchendo bitola e largura aqui, o pedido vincula automaticamente ao estoque quando você digitar essas mesmas medidas na Nota de Entrega — sem precisar escolher manualmente.
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Compr. Ref. (m)</label>
+                    <input type="number" step="0.5" value={form.comprimentoRef ?? ''}
+                      onChange={e => setForm(p => ({ ...p, comprimentoRef: parseFloat(e.target.value) || undefined }))}
+                      placeholder="ex: 3"
+                      className="w-full p-2.5 border border-amber-300 rounded-lg text-sm focus:border-amber-600 outline-none bg-white" />
+                  </div>
+                  <p className="col-span-3 text-[10px] text-amber-600">
+                    Bitola + largura vinculam automaticamente na Nota de Entrega. O comprimento de referência serve só pra calcular e mostrar o <strong>valor da peça</strong> (uma tábua inteira) — o cubico continua sendo calculado certinho na hora da venda com o comprimento real escolhido.
                   </p>
+                  {form.espessura && form.largura && form.comprimentoRef && form.precoVenda ? (
+                    <div className="col-span-3 bg-white border border-amber-300 rounded-lg p-2.5 flex items-center justify-between">
+                      <span className="text-[11px] text-amber-700 font-bold">
+                        Valor de 1 peça ({form.comprimentoRef}m): 
+                      </span>
+                      <span className="text-base font-black text-green-700">
+                        {fmt((form.espessura / 100) * (form.largura / 100) * form.comprimentoRef * form.precoVenda)}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
@@ -383,9 +400,21 @@ export const Estoque: React.FC = () => {
                   </div>
                   {(item.precoVenda || 0) > 0 && (
                     <div className="text-right flex-shrink-0">
-                      <p className="text-[9px] text-green-500 font-bold uppercase tracking-wider">Preço Venda</p>
-                      <p className="text-base font-black text-green-700">{fmt(item.precoVenda || 0)}</p>
-                      <p className="text-[9px] text-gray-400">/{item.unidade}</p>
+                      {item.categoria === 'madeira' && item.espessura && item.largura && item.comprimentoRef ? (
+                        <>
+                          <p className="text-[9px] text-green-500 font-bold uppercase tracking-wider">1 peça ({item.comprimentoRef}m)</p>
+                          <p className="text-base font-black text-green-700">
+                            {fmt((item.espessura / 100) * (item.largura / 100) * item.comprimentoRef * (item.precoVenda || 0))}
+                          </p>
+                          <p className="text-[9px] text-gray-400">{fmt(item.precoVenda || 0)} /m³</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-[9px] text-green-500 font-bold uppercase tracking-wider">Preço Venda</p>
+                          <p className="text-base font-black text-green-700">{fmt(item.precoVenda || 0)}</p>
+                          <p className="text-[9px] text-gray-400">/{item.unidade}</p>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
