@@ -9,12 +9,18 @@ interface Props {
   paymentTerms: string;
   docDate: string;
   readOnly?: boolean;
-  paymentMethod?: 'cheque' | 'dinheiro';
+  paymentMethod?: 'cheque' | 'dinheiro' | 'boleto';
 }
 
 function fmtBRL(n: number) {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
+
+const METHOD_LABELS: Record<string, { title: string; item: string }> = {
+  cheque: { title: 'Cheques / Parcelas', item: 'cheque' },
+  dinheiro: { title: 'Parcelas em Dinheiro', item: 'parcela' },
+  boleto: { title: 'Boletos', item: 'boleto' },
+};
 
 export const ChequeTable: React.FC<Props> = ({
   cheques,
@@ -25,8 +31,7 @@ export const ChequeTable: React.FC<Props> = ({
   readOnly,
   paymentMethod = 'cheque',
 }) => {
-  const label = paymentMethod === 'dinheiro' ? 'Parcelas em Dinheiro' : 'Cheques / Parcelas';
-  const itemLabel = paymentMethod === 'dinheiro' ? 'parcela' : 'cheque';
+  const { title: label, item: itemLabel } = METHOD_LABELS[paymentMethod] || METHOD_LABELS.cheque;
   const prevTerms = useRef('');
   const prevTotal = useRef(0);
 
@@ -63,9 +68,10 @@ export const ChequeTable: React.FC<Props> = ({
   const isVista = prazos.length === 0;
 
   if (isVista) {
+    const methodName = paymentMethod === 'boleto' ? 'Boleto' : paymentMethod === 'dinheiro' ? 'Dinheiro' : 'Cheque';
     return (
       <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-xs text-green-700 font-bold">
-        Pagamento à vista — sem cheques
+        Pagamento à vista — {methodName}, sem parcelamento
       </div>
     );
   }
