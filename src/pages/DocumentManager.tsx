@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { Document, Bloco, TimberItem } from '../types';
+import { Document, Bloco, TimberItem, ProductItem } from '../types';
 import { TimberCalculator } from '../components/TimberCalculator';
 import { ProductCalculator } from '../components/ProductCalculator';
 import { ItemCart } from '../components/ItemCart';
@@ -9,7 +9,7 @@ import { ClientAutocomplete } from '../components/ClientAutocomplete';
 import { ChequeTable } from '../components/ChequeTable';
 import { PaymentTracker } from '../components/PaymentTracker';
 import { Cheque } from '../lib/cheques';
-import { calcDerived } from '../lib/calc';
+import { calcDerived, newEmptyItem } from '../lib/calc';
 import { buildDocHTML } from '../lib/docHTML';
 import { buildDeliveryNoteHTML } from '../lib/deliveryNoteHTML';
 import { buildPaymentReportHTML } from '../lib/paymentReportHTML';
@@ -49,7 +49,7 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
   const { state, saveDocument } = useApp();
   const navigate = useNavigate();
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const fromPedidoId = searchParams.get('from');
 
   const nextNumber = () =>
@@ -160,6 +160,45 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
       }
     }
   }, [fromPedidoId]);
+
+  // Vindo da tela de Estoque com "Vender" — adiciona o item automaticamente
+  // ao carrinho assim que o documento novo é aberto.
+  const addStockId = searchParams.get('addStock');
+  useEffect(() => {
+    if (!addStockId) return;
+    if (id) return; // só em documento novo — não reaplica em documento já salvo/editado
+    const s = state.stockItems?.find(x => x.id === addStockId);
+    if (!s) return;
+
+    if (s.categoria === 'madeira') {
+      const item = newEmptyItem();
+      item.espessura = s.espessura || 0;
+      item.largura = s.largura || 0;
+      item.pricePerM3 = s.precoVenda || 0;
+      item.c3 = 1;
+      (item as any).stockItemId = s.id;
+      setDoc(prev => ({
+        ...prev,
+        blocos: [{
+          ...(prev.blocos?.[0] || { id: Math.random().toString(36).slice(2, 9), label: 'Principal', clientName: '' }),
+          items: [...(prev.blocos?.[0]?.items || []), item],
+        }],
+      }));
+    } else {
+      const item: ProductItem = {
+        id: Math.random().toString(36).slice(2, 9),
+        qty: 1,
+        unit: s.unidade || 'un',
+        desc: s.descricao,
+        priceUnit: s.precoVenda || 0,
+        stockItemId: s.id,
+      };
+      setDoc(prev => ({ ...prev, productItems: [...(prev.productItems || []), item] }));
+    }
+    // Limpa o parâmetro da URL pra não adicionar de novo se a página recarregar
+    setSearchParams(prev => { const p = new URLSearchParams(prev); p.delete('addStock'); return p; }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addStockId, id, state.stockItems]);
 
   // ── Totals — soma madeira + produtos juntos, sempre ──────────────────────
   const totals = useMemo(() => {
