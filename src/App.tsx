@@ -12,6 +12,7 @@ import { TabelaPrecos } from './pages/TabelaPrecos';
 import { ChequesDevolvidos } from './pages/ChequesDevolvidos';
 import { Estoque } from './pages/Estoque';
 import { Catalogo } from './pages/Catalogo';
+import { Financeiro } from './pages/Financeiro';
 
 export default function App() {
   const [authed, setAuthed] = useState(isAuthenticated());
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/notas-entrega/:id" element={<DocumentManager type="notaentrega" />} />
             <Route path="/estoque" element={<Estoque />} />
             <Route path="/catalogo" element={<Catalogo />} />
+            <Route path="/financeiro" element={<Financeiro />} />
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="/tabela-precos" element={<TabelaPrecos />} />
             <Route path="/cheques-devolvidos" element={<ChequesDevolvidos />} />
