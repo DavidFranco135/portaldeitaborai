@@ -15,7 +15,7 @@ function fmt(n: number) {
 type TypeFilter = 'todos' | 'pedido' | 'romaneio' | 'notaentrega';
 type StatusFilter = 'todos' | 'andamento' | 'concluido';
 type PaymentFilter = 'todos' | 'aberto' | 'quitado';
-type WoodFilter = 'todos' | 'pinus' | 'eucalipto' | 'outro';
+type CategoriaFilter = 'todos' | 'madeira' | 'porta' | 'batente' | 'aduela' | 'bloco' | 'outro';
 type CommissionFilter = 'todos' | 'pendente' | 'recebida';
 type PurposeFilter = 'todos' | 'cliente' | 'serraria';
 
@@ -26,7 +26,7 @@ export const Relatorios: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>((searchParams.get('type') as TypeFilter) || 'todos');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>((searchParams.get('status') as StatusFilter) || 'todos');
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>((searchParams.get('payment') as PaymentFilter) || 'todos');
-  const [woodFilter, setWoodFilter] = useState<WoodFilter>('todos');
+  const [categoriaFilter, setCategoriaFilter] = useState<CategoriaFilter>('todos');
   const [commissionFilter, setCommissionFilter] = useState<CommissionFilter>((searchParams.get('commission') as CommissionFilter) || 'todos');
   const [purposeFilter, setPurposeFilter] = useState<PurposeFilter>('todos');
   const [search, setSearch] = useState('');
@@ -37,7 +37,7 @@ export const Relatorios: React.FC = () => {
   const filtered = useMemo(() => {
     return state.documents.filter(d => {
       if (typeFilter !== 'todos' && d.type !== typeFilter) return false;
-      if (woodFilter !== 'todos' && d.woodType !== woodFilter) return false;
+      if (categoriaFilter !== 'todos' && !(d.categorias || []).includes(categoriaFilter)) return false;
       if (purposeFilter !== 'todos' && d.type === 'pedido' && (d.docPurpose || 'cliente') !== purposeFilter) return false;
       if (statusFilter === 'andamento' && d.status === 'concluido') return false;
       if (statusFilter === 'concluido' && d.status !== 'concluido') return false;
@@ -69,7 +69,7 @@ export const Relatorios: React.FC = () => {
       }
       return true;
     });
-  }, [state.documents, typeFilter, statusFilter, search, dateFrom, dateTo, paymentFilter, woodFilter, commissionFilter, purposeFilter]);
+  }, [state.documents, typeFilter, statusFilter, search, dateFrom, dateTo, paymentFilter, categoriaFilter, commissionFilter, purposeFilter]);
 
   const summary = useMemo(() => filtered.reduce(
     (acc, d) => {
@@ -144,7 +144,7 @@ export const Relatorios: React.FC = () => {
         await adjustStock(
           it.stockItemId,
           -it.qty,
-          `${doc.type === 'romaneio' ? 'Romaneio' : doc.type === 'notaentrega' ? 'Nota de Entrega' : 'Pedido'} Nº ${doc.number}`,
+          `${doc.type === 'romaneio' ? 'Venda' : doc.type === 'notaentrega' ? 'Nota de Entrega' : 'Orçamento'} Nº ${doc.number}`,
           { id: doc.id, number: doc.number, type: doc.type }
         );
       }
@@ -155,7 +155,7 @@ export const Relatorios: React.FC = () => {
         await adjustStock(
           it.stockItemId,
           it.qty,
-          `Estorno — ${doc.type === 'romaneio' ? 'Romaneio' : doc.type === 'notaentrega' ? 'Nota de Entrega' : 'Pedido'} Nº ${doc.number} reaberto`,
+          `Estorno — ${doc.type === 'romaneio' ? 'Venda' : doc.type === 'notaentrega' ? 'Nota de Entrega' : 'Orçamento'} Nº ${doc.number} reaberto`,
           { id: doc.id, number: doc.number, type: doc.type }
         );
       }
@@ -210,41 +210,26 @@ export const Relatorios: React.FC = () => {
             <button key={f} onClick={() => setTypeFilter(f)}
               className={['px-3 py-1.5 rounded-md text-[11px] font-bold transition-all',
                 typeFilter === f ? 'bg-green-700 text-white shadow' : 'text-gray-500 hover:bg-gray-100'].join(' ')}
-            >{f === 'notaentrega' ? 'Nota Entrega' : f === 'todos' ? 'Todos' : f.charAt(0).toUpperCase() + f.slice(1)}</button>
+            >{f === 'notaentrega' ? 'Nota Entrega' : f === 'todos' ? 'Todos' : f === 'pedido' ? 'Orçamento' : f === 'romaneio' ? 'Venda' : f}</button>
           ))}
         </div>
 
-        <div className="flex gap-0.5 p-0.5 bg-white border border-gray-200 rounded-lg">
-          {(['todos', 'pinus', 'eucalipto', 'outro'] as WoodFilter[]).map(f => (
-            <button key={f} onClick={() => setWoodFilter(f)}
-              className={['px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all capitalize',
-                woodFilter === f
-                  ? f === 'pinus' ? 'bg-amber-500 text-white shadow'
-                    : f === 'eucalipto' ? 'bg-red-500 text-white shadow'
-                    : 'bg-gray-700 text-white shadow'
-                  : 'text-gray-500 hover:bg-gray-100'].join(' ')}
-            >{f === 'todos' ? 'Madeiras' : f}</button>
+        <div className="flex gap-0.5 p-0.5 bg-white border border-gray-200 rounded-lg overflow-x-auto">
+          {([
+            { val: 'todos', label: 'Categoria', emoji: '' },
+            { val: 'madeira', label: 'Madeira', emoji: '🪵' },
+            { val: 'porta', label: 'Porta', emoji: '🚪' },
+            { val: 'batente', label: 'Batente', emoji: '🖼' },
+            { val: 'aduela', label: 'Aduela', emoji: '🖼' },
+            { val: 'bloco', label: 'Bloco', emoji: '🧱' },
+            { val: 'outro', label: 'Outro', emoji: '📦' },
+          ] as { val: CategoriaFilter; label: string; emoji: string }[]).map(f => (
+            <button key={f.val} onClick={() => setCategoriaFilter(f.val)}
+              className={['px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all whitespace-nowrap',
+                categoriaFilter === f.val ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:bg-gray-100'].join(' ')}
+            >{f.emoji} {f.label}</button>
           ))}
         </div>
-
-        {(typeFilter === 'pedido' || typeFilter === 'todos') && (
-          <div className="flex gap-0.5 p-0.5 bg-white border border-gray-200 rounded-lg">
-            {([
-              { val: 'todos', label: 'Origem' },
-              { val: 'cliente', label: '👤 Cliente' },
-              { val: 'serraria', label: '🏭 Serraria' },
-            ] as { val: PurposeFilter; label: string }[]).map(f => (
-              <button key={f.val} onClick={() => setPurposeFilter(f.val)}
-                className={['px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all',
-                  purposeFilter === f.val
-                    ? f.val === 'serraria' ? 'bg-purple-600 text-white shadow'
-                      : f.val === 'cliente' ? 'bg-blue-600 text-white shadow'
-                      : 'bg-gray-700 text-white shadow'
-                    : 'text-gray-500 hover:bg-gray-100'].join(' ')}
-              >{f.label}</button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Secondary filters — dropdowns, compact on any screen */}
@@ -261,19 +246,6 @@ export const Relatorios: React.FC = () => {
                 <option value="todos">Todos Pagamentos</option>
                 <option value="aberto">⚠ Em Aberto</option>
                 <option value="quitado">✓ Quitados</option>
-              </select>
-            </div>
-
-            <div className="space-y-0.5">
-              <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider px-0.5">Comissão</label>
-              <select value={commissionFilter} onChange={e => setCommissionFilter(e.target.value as CommissionFilter)}
-                className={['w-full px-2.5 py-2 rounded-lg text-xs font-bold border outline-none transition-all',
-                  commissionFilter === 'pendente' ? 'bg-amber-50 border-amber-300 text-amber-800'
-                    : commissionFilter === 'recebida' ? 'bg-green-50 border-green-300 text-green-800'
-                    : 'bg-white border-gray-200 text-gray-600'].join(' ')}>
-                <option value="todos">Todas Comissões</option>
-                <option value="pendente">⏳ A Receber</option>
-                <option value="recebida">✓ Recebida</option>
               </select>
             </div>
           </>
@@ -369,21 +341,21 @@ export const Relatorios: React.FC = () => {
                   <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
                     {doc.type === 'notaentrega' ? 'Nota de Entrega' : doc.type} Nº {doc.number}
                   </span>
-                  {doc.woodType && (
-                    <span className={[
-                      'text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase',
-                      doc.woodType === 'pinus' ? 'bg-amber-100 text-amber-700'
-                        : doc.woodType === 'eucalipto' ? 'bg-red-100 text-red-700'
-                        : 'bg-gray-100 text-gray-600'
-                    ].join(' ')}>
-                      {doc.woodType}
-                    </span>
-                  )}
-                  {doc.type === 'pedido' && doc.docPurpose === 'serraria' && (
-                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
-                      🏭 Serraria
-                    </span>
-                  )}
+                  {(doc.categorias || []).map(cat => {
+                    const CAT_STYLE: Record<string, string> = {
+                      madeira: 'bg-amber-100 text-amber-700',
+                      porta: 'bg-blue-100 text-blue-700',
+                      batente: 'bg-purple-100 text-purple-700',
+                      aduela: 'bg-purple-100 text-purple-700',
+                      bloco: 'bg-orange-100 text-orange-700',
+                      outro: 'bg-gray-100 text-gray-600',
+                    };
+                    return (
+                      <span key={cat} className={['text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase', CAT_STYLE[cat] || CAT_STYLE.outro].join(' ')}>
+                        {cat}
+                      </span>
+                    );
+                  })}
                   <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
                     <Calendar className="w-2.5 h-2.5" />
                     {doc.date ? format(parseISO(doc.date + 'T12:00:00'), 'dd/MM/yyyy') : '—'}
@@ -445,7 +417,7 @@ export const Relatorios: React.FC = () => {
                   to={`/romaneios/novo?from=${doc.id}`}
                   className="flex items-center justify-center gap-1 px-3 py-2 sm:py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all"
                 >
-                  <Truck className="w-3 h-3" /> Criar Romaneio
+                  <Truck className="w-3 h-3" /> Criar Venda
                 </Link>
               )}
               {(doc.type === 'pedido' || doc.type === 'notaentrega') && (
