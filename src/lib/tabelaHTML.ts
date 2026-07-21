@@ -6,12 +6,21 @@ interface PrecoRow {
   valorM3: number;
 }
 
+interface SimpleRow {
+  id: string;
+  descricao: string;
+  unidade: string;
+  valorUnitario: number;
+}
+
 interface TabelaPreco {
   id: string;
   nome: string;
   valorM3: number;
   rows: PrecoRow[];
+  simpleRows?: SimpleRow[];
   descricao?: string;
+  especie?: string;
 }
 
 interface Settings {
@@ -49,6 +58,7 @@ const TD_GRAY = 'border:1px solid #999;padding:4px 8px;text-align:center;font-si
 
 export function buildTabelaHTML(tabela: TabelaPreco, s: Settings): string {
   const today = new Date().toLocaleDateString('pt-BR');
+  const isSimple = tabela.especie === 'porta' || tabela.especie === 'aduela' || tabela.especie === 'bloco';
 
   const tableRows = tabela.rows.map((r, i) => {
     const c = calcRow(r);
@@ -66,6 +76,48 @@ export function buildTabelaHTML(tabela: TabelaPreco, s: Settings): string {
       '</tr>'
     );
   }).join('');
+
+  const simpleTableRows = (tabela.simpleRows || []).map((r, i) => {
+    const bg = i % 2 === 0 ? '#ffffff' : '#f7f7f7';
+    return (
+      '<tr style="background:' + bg + '">' +
+      '<td style="' + TD + ';text-align:left;padding-left:10px">' + (r.descricao || '—') + '</td>' +
+      '<td style="' + TD_GRAY + '">' + r.unidade + '</td>' +
+      '<td style="border:1px solid ' + C_DARK + ';padding:4px 8px;text-align:center;font-size:13px;font-weight:bold;color:' + C_DARK + '">' + (r.valorUnitario > 0 ? fmt(r.valorUnitario) : '—') + '</td>' +
+      '</tr>'
+    );
+  }).join('');
+
+  const priceTableHTML = isSimple
+    ? '<table style="margin-bottom:16px">' +
+      '<thead><tr>' +
+      '<th style="' + TH + ';text-align:left;padding-left:10px">Descrição</th>' +
+      '<th style="' + TH + '">Unidade</th>' +
+      '<th style="' + TH + '">Preço Unit.</th>' +
+      '</tr></thead>' +
+      '<tbody>' + simpleTableRows + '</tbody>' +
+      '<tfoot><tr>' +
+      '<td colspan="3" style="border:1px solid #999;padding:5px 10px;font-size:12px;text-align:right;font-style:italic;color:#555">' +
+      (tabela.simpleRows || []).length + ' itens' +
+      '</td></tr></tfoot>' +
+      '</table>'
+    : '<table style="margin-bottom:16px">' +
+      '<thead><tr>' +
+      '<th style="' + TH + '">Bitola (cm)</th>' +
+      '<th style="' + TH + '">Largura (cm)</th>' +
+      '<th style="' + TH + '">Comprimento</th>' +
+      '<th style="' + TH + '">QTD Peças/m³</th>' +
+      '<th style="' + TH + '">Preço/Unidade</th>' +
+      '<th style="' + TH + '">Metros Lin.</th>' +
+      '<th style="' + TH + '">Valor m³</th>' +
+      '<th style="' + TH + '">M³/Peça</th>' +
+      '</tr></thead>' +
+      '<tbody>' + tableRows + '</tbody>' +
+      '<tfoot><tr>' +
+      '<td colspan="8" style="border:1px solid #999;padding:5px 10px;font-size:12px;text-align:right;font-style:italic;color:#555">' +
+      'valor em m³: <strong style="color:' + C_DARK + '">' + fmt(tabela.valorM3) + '</strong> | ' + tabela.rows.length + ' itens' +
+      '</td></tr></tfoot>' +
+      '</table>';
 
   return '<!DOCTYPE html>' +
     '<html lang="pt-BR"><head>' +
@@ -121,27 +173,11 @@ export function buildTabelaHTML(tabela: TabelaPreco, s: Settings): string {
     '<span style="font-size:17px;font-weight:900;color:' + C_DARK + ';text-transform:uppercase">' + tabela.nome + '</span>' +
     (tabela.descricao ? '<div style="font-size:13px;color:#555;margin-top:2px">' + tabela.descricao + '</div>' : '') +
     '</div>' +
-    '<span style="font-size:14px;font-weight:bold;color:#333;border:1px solid #999;padding:2px 10px;border-radius:4px">Valor m³: <strong style="color:' + C_DARK + '">' + fmt(tabela.valorM3) + '</strong></span>' +
+    (isSimple ? '' : '<span style="font-size:14px;font-weight:bold;color:#333;border:1px solid #999;padding:2px 10px;border-radius:4px">Valor m³: <strong style="color:' + C_DARK + '">' + fmt(tabela.valorM3) + '</strong></span>') +
     '</div>' +
 
     // Price table
-    '<table style="margin-bottom:16px">' +
-    '<thead><tr>' +
-    '<th style="' + TH + '">Bitola (cm)</th>' +
-    '<th style="' + TH + '">Largura (cm)</th>' +
-    '<th style="' + TH + '">Comprimento</th>' +
-    '<th style="' + TH + '">QTD Peças/m³</th>' +
-    '<th style="' + TH + '">Preço/Unidade</th>' +
-    '<th style="' + TH + '">Metros Lin.</th>' +
-    '<th style="' + TH + '">Valor m³</th>' +
-    '<th style="' + TH + '">M³/Peça</th>' +
-    '</tr></thead>' +
-    '<tbody>' + tableRows + '</tbody>' +
-    '<tfoot><tr>' +
-    '<td colspan="8" style="border:1px solid #999;padding:5px 10px;font-size:12px;text-align:right;font-style:italic;color:#555">' +
-    'valor em m³: <strong style="color:' + C_DARK + '">' + fmt(tabela.valorM3) + '</strong> | ' + tabela.rows.length + ' itens' +
-    '</td></tr></tfoot>' +
-    '</table>' +
+    priceTableHTML +
 
     // Footer
     '<div style="border-top:1px solid #ccc;padding-top:8px;text-align:center;font-size:10px;color:#aaa">' +
