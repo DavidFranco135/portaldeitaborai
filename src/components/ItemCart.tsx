@@ -235,10 +235,10 @@ export const ItemCart: React.FC<Props> = ({
                 )}
               </div>
 
-              {/* Row 2: preço R$/m³ + M³ calculado */}
-              <div className="flex items-center gap-2 pl-11">
+              {/* Row 2: preço R$/m³ + valor unitário (por peça) + M³ calculado */}
+              <div className="flex items-center gap-2 pl-11 flex-wrap">
                 {!readOnly ? (
-                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-1 min-w-[120px]">
                     <span className="text-[10px] text-gray-400 font-bold whitespace-nowrap">R$/m³</span>
                     <input type="number" value={item.pricePerM3 || ''}
                       onChange={e => updateTimberPrice(item.id, parseFloat(e.target.value) || 0)}
@@ -247,6 +247,11 @@ export const ItemCart: React.FC<Props> = ({
                   </div>
                 ) : (
                   <span className="text-xs text-gray-400">{fmt(item.pricePerM3)}/m³</span>
+                )}
+                {qty > 0 && (
+                  <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-1 rounded-lg whitespace-nowrap">
+                    Unit.: {fmt(d.value / qty)}
+                  </span>
                 )}
                 <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">{d.finalM3.toFixed(3)} m³</span>
               </div>
@@ -414,18 +419,30 @@ export const ItemCart: React.FC<Props> = ({
             <div className="overflow-y-auto flex-1 p-4">
               {addTab === 'madeira' ? (
                 <div className="space-y-4">
-                  {/* Stock quick-pick for madeira (fills price, still need dimensions) */}
+                  {/* Prateleira do estoque — toca no item e já preenche bitola/largura/preço */}
                   {madeiraStock.length > 0 && (
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Preço rápido do estoque (opcional)</label>
-                      <div className="flex flex-wrap gap-1.5">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">📦 Do estoque — toque pra preencher tudo</label>
+                      <div className="flex gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
                         {madeiraStock.map(s => (
-                          <button key={s.id} onClick={() => pickMadeiraStock(s)}
+                          <button key={s.id}
+                            onClick={() => {
+                              pickMadeiraStock(s);
+                              if (s.espessura) setMEsp(String(s.espessura));
+                              if (s.largura) setMLarg(String(s.largura));
+                            }}
                             className={[
-                              'px-2.5 py-1.5 rounded-lg text-[11px] font-bold border-2 transition-all',
-                              mStockId === s.id ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                              'flex-shrink-0 w-32 text-left p-2.5 rounded-xl border-2 transition-all',
+                              mStockId === s.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200 bg-white hover:border-gray-300'
                             ].join(' ')}>
-                            {s.descricao.slice(0, 24)} {s.precoVenda ? '· ' + fmt(s.precoVenda) : ''}
+                            <p className="text-[11px] font-bold text-gray-700 leading-tight line-clamp-2">{s.descricao}</p>
+                            {s.espessura && s.largura && (
+                              <p className="text-[9px] text-gray-400 mt-1">{s.espessura}×{s.largura}cm</p>
+                            )}
+                            <p className="text-sm font-black text-green-700 mt-1">
+                              {s.precoVenda ? fmt(s.precoVenda) : '—'}
+                            </p>
+                            <p className="text-[8px] text-gray-400">/m³ · {s.quantidadeAtual} disp.</p>
                           </button>
                         ))}
                       </div>
@@ -519,12 +536,14 @@ export const ItemCart: React.FC<Props> = ({
                         return (
                           <button key={s.id} onClick={() => addFromProductStock(s)}
                             className="w-full text-left px-3 py-2.5 hover:bg-blue-50 active:bg-blue-100 border border-gray-100 rounded-xl transition-colors flex items-center justify-between gap-2">
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="font-bold text-gray-800 text-sm truncate">{s.descricao}</p>
-                              <p className="text-xs text-gray-400">{s.precoVenda ? fmt(s.precoVenda) + ' / ' + s.unidade : s.unidade}</p>
+                              <p className={['font-black text-base mt-0.5', isLow ? 'text-red-500' : 'text-green-700'].join(' ')}>
+                                {s.precoVenda ? fmt(s.precoVenda) : '—'} <span className="text-[10px] text-gray-400 font-normal">/{s.unidade}</span>
+                              </p>
                             </div>
                             <div className="text-right flex-shrink-0">
-                              <p className={['font-bold text-sm', isLow ? 'text-red-600' : 'text-gray-700'].join(' ')}>
+                              <p className={['font-bold text-xs', isLow ? 'text-red-600' : 'text-gray-500'].join(' ')}>
                                 {s.quantidadeAtual} {s.unidade}
                               </p>
                               {isLow && <p className="text-[9px] text-red-500 font-bold">Baixo</p>}
