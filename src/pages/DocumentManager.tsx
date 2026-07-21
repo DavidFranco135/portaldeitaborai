@@ -217,6 +217,36 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
 
   const freightIcms = doc.freightIcms || 0;
 
+  // ── Categorias detectadas automaticamente pelos itens do carrinho ──────────
+  // Substitui a escolha manual de "Tipo de Madeira" — já que um documento
+  // pode ter madeira e produtos misturados, a categoria é sempre calculada
+  // a partir do que realmente foi adicionado, nunca escolhida à mão.
+  const CATEGORIA_INFO: Record<string, { label: string; emoji: string; color: string }> = {
+    madeira: { label: 'Madeira', emoji: '🪵', color: 'bg-amber-100 text-amber-700' },
+    porta: { label: 'Porta', emoji: '🚪', color: 'bg-blue-100 text-blue-700' },
+    batente: { label: 'Batente', emoji: '🖼', color: 'bg-purple-100 text-purple-700' },
+    aduela: { label: 'Aduela', emoji: '🖼', color: 'bg-purple-100 text-purple-700' },
+    bloco: { label: 'Bloco', emoji: '🧱', color: 'bg-orange-100 text-orange-700' },
+    outro: { label: 'Outro', emoji: '📦', color: 'bg-gray-100 text-gray-600' },
+  };
+  const docCategorias = useMemo(() => {
+    const cats = new Set<string>();
+    const hasTimber = (doc.blocos || []).some(b => (b.items || []).some((it: any) =>
+      (it.c3 || it.c4 || it.c5 || it.c6) > 0
+    ));
+    if (hasTimber) cats.add('madeira');
+
+    (doc.productItems || []).forEach(it => {
+      if (it.stockItemId) {
+        const s = state.stockItems?.find(x => x.id === it.stockItemId);
+        cats.add(s?.categoria || 'outro');
+      } else {
+        cats.add('outro');
+      }
+    });
+    return Array.from(cats);
+  }, [doc.blocos, doc.productItems, state.stockItems]);
+
   // Lista de clientes cadastrados ordenada (para autocomplete no campo manual)
   const sortedClientNames = useMemo(() =>
     [...state.clients].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })),
@@ -425,6 +455,7 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
       id: doc.id || Math.random().toString(36).slice(2, 11),
       clientName: doc.blocos?.[0]?.clientName || doc.clientName || '—',
       items: doc.blocos?.flatMap(b => b.items) || [],
+      categorias: docCategorias,
       subtotal: totals.subtotal,
       totalM3: totals.m3,
       commissionValue: commission,
@@ -800,16 +831,14 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
               <h1 className="text-lg font-black text-green-800 capitalize leading-tight truncate">
                 {type === 'pedido' ? 'Orçamento' : type === 'romaneio' ? 'Venda' : 'Nota de Entrega'} Nº {doc.number}
               </h1>
-              {doc.woodType && (
-                <span className={[
-                  'text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0',
-                  doc.woodType === 'pinus' ? 'bg-amber-100 text-amber-700'
-                    : doc.woodType === 'eucalipto' ? 'bg-red-100 text-red-700'
-                    : 'bg-gray-100 text-gray-600'
-                ].join(' ')}>
-                  {doc.woodType}
-                </span>
-              )}
+              {docCategorias.map(cat => {
+                const info = CATEGORIA_INFO[cat] || CATEGORIA_INFO.outro;
+                return (
+                  <span key={cat} className={['text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0', info.color].join(' ')}>
+                    {info.emoji} {info.label}
+                  </span>
+                );
+              })}
             </div>
             <p className="text-[10px] text-gray-400 uppercase tracking-widest leading-tight">
               {id ? 'Editando' : 'Novo documento'}
@@ -886,7 +915,7 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
             <span className="text-sm font-black text-gray-700">📋 Dados do Documento</span>
             {!showDocFields && (
               <span className="text-[10px] text-gray-400 font-bold">
-                Nº {doc.number} · {doc.woodType || 'pinus'}
+                Nº {doc.number} {docCategorias.length > 0 && '· ' + docCategorias.map(c => CATEGORIA_INFO[c]?.label || c).join(', ')}
               </span>
             )}
           </div>
@@ -911,27 +940,20 @@ export const DocumentManager: React.FC<{ type: 'pedido' | 'romaneio' | 'notaentr
             className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-green-600 outline-none" />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tipo de Madeira</label>
-          <div className="grid grid-cols-3 gap-1.5">
-            {([
-              { val: 'pinus', label: 'Pinus', color: 'amber' },
-              { val: 'eucalipto', label: 'Eucalipto', color: 'red' },
-              { val: 'outro', label: 'Outro', color: 'gray' },
-            ] as const).map(w => (
-              <button key={w.val} type="button"
-                onClick={() => setDoc(p => ({ ...p, woodType: w.val }))}
-                className={[
-                  'py-2 rounded-lg text-xs font-bold border-2 transition-all',
-                  doc.woodType === w.val
-                    ? w.color === 'amber' ? 'border-amber-500 bg-amber-50 text-amber-700'
-                      : w.color === 'red' ? 'border-red-400 bg-red-50 text-red-700'
-                      : 'border-gray-400 bg-gray-100 text-gray-700'
-                    : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                ].join(' ')}
-              >
-                {w.label}
-              </button>
-            ))}
+          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Categoria (detectada pelos itens)</label>
+          <div className="flex flex-wrap gap-1.5 min-h-[42px] items-center p-2 bg-gray-50 border border-gray-200 rounded-lg">
+            {docCategorias.length > 0 ? (
+              docCategorias.map(cat => {
+                const info = CATEGORIA_INFO[cat] || CATEGORIA_INFO.outro;
+                return (
+                  <span key={cat} className={['text-xs font-bold px-2.5 py-1 rounded-full', info.color].join(' ')}>
+                    {info.emoji} {info.label}
+                  </span>
+                );
+              })
+            ) : (
+              <span className="text-xs text-gray-400 italic">Adicione itens pra detectar automaticamente</span>
+            )}
           </div>
         </div>
         <div className="space-y-1">
