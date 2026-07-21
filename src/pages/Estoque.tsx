@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { StockItem, StockMovement } from '../types';
 import {
   Plus, Search, Trash2, Edit2, X, Package, AlertTriangle, TrendingUp,
-  TrendingDown, History, ChevronDown, ChevronUp,
+  TrendingDown, History, ChevronDown, ChevronUp, ShoppingCart, FileText, Truck,
 } from 'lucide-react';
 
 function fmt(n: number) {
@@ -27,6 +28,8 @@ const EMPTY: Partial<StockItem> = {
 
 export const Estoque: React.FC = () => {
   const { state, saveStockItem, deleteStockItem, adjustStock } = useApp();
+  const navigate = useNavigate();
+  const [venderItem, setVenderItem] = useState<StockItem | null>(null);
   const [search, setSearch] = useState('');
   const [categoriaFiltro, setCategoriaFiltro] = useState<'todos' | StockItem['categoria']>('todos');
   const [showForm, setShowForm] = useState(false);
@@ -89,6 +92,18 @@ export const Estoque: React.FC = () => {
     const delta = adjustModal.tipo === 'entrada' ? qty : -qty;
     await adjustStock(adjustModal.item.id, delta, adjustMotivo || 'Ajuste manual');
     setAdjustModal(null);
+  };
+
+  /**
+   * Leva o item direto pra criação de um novo documento (Nota de Entrega
+   * ou Pedido/Orçamento), já pré-adicionado no carrinho — o destino lê o
+   * parâmetro ?addStock=ID na montagem e adiciona automaticamente.
+   */
+  const navigateToSell = (destino: 'notaentrega' | 'pedido') => {
+    if (!venderItem) return;
+    const rota = destino === 'notaentrega' ? '/notas-entrega/novo' : '/pedidos/novo';
+    navigate(`${rota}?addStock=${venderItem.id}`);
+    setVenderItem(null);
   };
 
   return (
@@ -261,6 +276,45 @@ export const Estoque: React.FC = () => {
         </div>
       )}
 
+      {/* Vender — escolher pra onde levar o item */}
+      {venderItem && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center"
+          onClick={() => setVenderItem(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-sm p-5 space-y-3"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-black text-gray-900">Adicionar a...</h2>
+                <p className="text-xs text-gray-500 truncate">{venderItem.descricao}</p>
+              </div>
+              <button onClick={() => setVenderItem(null)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg flex-shrink-0">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <button onClick={() => navigateToSell('notaentrega')}
+              className="w-full flex items-center gap-3 p-3.5 bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 rounded-xl transition-all text-left">
+              <div className="w-10 h-10 bg-purple-600 text-white rounded-lg flex items-center justify-center flex-shrink-0">
+                <Package className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-purple-800 text-sm">Nova Nota de Entrega</p>
+                <p className="text-[11px] text-purple-500">Confirmação de itens entregues</p>
+              </div>
+            </button>
+            <button onClick={() => navigateToSell('pedido')}
+              className="w-full flex items-center gap-3 p-3.5 bg-amber-50 hover:bg-amber-100 border-2 border-amber-200 rounded-xl transition-all text-left">
+              <div className="w-10 h-10 bg-amber-500 text-white rounded-lg flex items-center justify-center flex-shrink-0">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-amber-800 text-sm">Novo Pedido / Orçamento</p>
+                <p className="text-[11px] text-amber-500">Ordem de compra ou orçamento</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Adjust stock modal */}
       {adjustModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setAdjustModal(null)}>
@@ -307,41 +361,57 @@ export const Estoque: React.FC = () => {
               'bg-white border rounded-xl shadow-sm overflow-hidden',
               isLow ? 'border-red-200' : 'border-gray-200'
             ].join(' ')}>
-              <div className="p-4 flex items-center gap-3">
-                <div className="w-11 h-11 bg-gray-50 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">
-                  {cat?.label.split(' ')[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-900 truncate">{item.descricao}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className={['text-lg font-black', isLow ? 'text-red-600' : 'text-gray-800'].join(' ')}>
-                      {item.quantidadeAtual}
-                    </span>
-                    <span className="text-xs text-gray-400">{item.unidade}</span>
-                    {isLow && (
-                      <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5">
-                        <AlertTriangle className="w-2.5 h-2.5" /> Baixo
-                      </span>
-                    )}
+              <div className="p-4 space-y-3">
+                {/* Row 1: ícone + descrição + preço */}
+                <div className="flex items-start gap-3">
+                  <div className="w-11 h-11 bg-gray-50 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">
+                    {cat?.label.split(' ')[0]}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900">{item.descricao}</p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className={['text-lg font-black', isLow ? 'text-red-600' : 'text-gray-800'].join(' ')}>
+                        {item.quantidadeAtual}
+                      </span>
+                      <span className="text-xs text-gray-400">{item.unidade}</span>
+                      {isLow && (
+                        <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5">
+                          <AlertTriangle className="w-2.5 h-2.5" /> Baixo
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {(item.precoVenda || 0) > 0 && (
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-[9px] text-green-500 font-bold uppercase tracking-wider">Preço Venda</p>
+                      <p className="text-base font-black text-green-700">{fmt(item.precoVenda || 0)}</p>
+                      <p className="text-[9px] text-gray-400">/{item.unidade}</p>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+
+                {/* Row 2: ações */}
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setVenderItem(item)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-green-700 text-white rounded-lg text-xs font-bold hover:bg-green-800 active:scale-95 transition-all">
+                    <ShoppingCart className="w-3.5 h-3.5" /> Vender
+                  </button>
                   <button onClick={() => openAdjust(item, 'entrada')} title="Registrar entrada"
-                    className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all">
+                    className="p-2.5 text-green-600 hover:bg-green-50 rounded-lg transition-all flex-shrink-0">
                     <TrendingUp className="w-4 h-4" />
                   </button>
                   <button onClick={() => openAdjust(item, 'saida')} title="Registrar saída"
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                    className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-all flex-shrink-0">
                     <TrendingDown className="w-4 h-4" />
                   </button>
                   <button onClick={() => setExpandedId(isExpanded ? null : item.id)} title="Histórico"
-                    className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-all">
+                    className="p-2.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-all flex-shrink-0">
                     {isExpanded ? <ChevronUp className="w-4 h-4" /> : <History className="w-4 h-4" />}
                   </button>
-                  <button onClick={() => openEdit(item)} className="p-2 text-gray-400 hover:text-green-700 hover:bg-green-50 rounded-lg transition-all">
+                  <button onClick={() => openEdit(item)} className="p-2.5 text-gray-400 hover:text-green-700 hover:bg-green-50 rounded-lg transition-all flex-shrink-0">
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  <button onClick={() => handleDelete(item.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                  <button onClick={() => handleDelete(item.id)} className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all flex-shrink-0">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
