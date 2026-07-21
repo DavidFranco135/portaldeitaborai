@@ -59,6 +59,8 @@ export const ItemCart: React.FC<Props> = ({
   const [mComp, setMComp] = useState<typeof COMPS[number]>(3);
   const [mQty, setMQty] = useState('');
   const [mPreco, setMPreco] = useState('');
+  const [mPrecoPeca, setMPrecoPeca] = useState('');
+  const [mPriceMode, setMPriceMode] = useState<'m3' | 'peca'>('m3');
   const [mStockId, setMStockId] = useState<string | undefined>(undefined);
 
   const madeiraStock = stockItems.filter(s => s.categoria === 'madeira');
@@ -125,8 +127,15 @@ export const ItemCart: React.FC<Props> = ({
     const esp = parseFloat(mEsp) || 0;
     const larg = parseFloat(mLarg) || 0;
     const qty = parseInt(mQty) || 0;
-    const preco = parseFloat(mPreco) || 0;
     if (!esp || !larg || !qty) return;
+
+    // Se o vendedor digitou o preço da PEÇA (uma tábua), converte pra
+    // R$/m³ internamente — é isso que o sistema usa em todos os cálculos,
+    // no PDF e na baixa de estoque.
+    const m3PorPeca = (esp / 100) * (larg / 100) * mComp;
+    const preco = mPriceMode === 'peca'
+      ? (m3PorPeca > 0 ? (parseFloat(mPrecoPeca) || 0) / m3PorPeca : 0)
+      : (parseFloat(mPreco) || 0);
 
     const item = newEmptyItem();
     item.espessura = esp;
@@ -138,13 +147,19 @@ export const ItemCart: React.FC<Props> = ({
     onChangeTimber([...timberItems, item]);
     setJustAddedId(item.id);
     setTimeout(() => setJustAddedId(null), 1500);
-    setMEsp(''); setMLarg(''); setMQty(''); setMPreco(''); setMStockId(undefined);
+    setMEsp(''); setMLarg(''); setMQty(''); setMPreco(''); setMPrecoPeca(''); setMStockId(undefined);
     setAddOpen(false);
   };
 
   const pickMadeiraStock = (s: StockItem) => {
     setMStockId(s.id);
-    if (s.precoVenda) setMPreco(String(s.precoVenda));
+    if (s.precoVenda) {
+      setMPreco(String(s.precoVenda));
+      if (mPriceMode === 'peca' && s.espessura && s.largura) {
+        const m3 = (s.espessura / 100) * (s.largura / 100) * mComp;
+        if (m3 > 0) setMPrecoPeca((s.precoVenda * m3).toFixed(2));
+      }
+    }
   };
 
   // ── Ações: produtos ──────────────────────────────────────────────────────
@@ -496,22 +511,61 @@ export const ItemCart: React.FC<Props> = ({
                         className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Preço R$/m³</label>
-                      <input type="number" value={mPreco} onChange={e => setMPreco(e.target.value)}
-                        placeholder="0,00"
-                        className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Preço</label>
+                        <div className="flex gap-0.5 p-0.5 bg-gray-100 rounded-md">
+                          <button type="button" onClick={() => setMPriceMode('m3')}
+                            className={['px-1.5 py-0.5 rounded text-[9px] font-bold transition-all',
+                              mPriceMode === 'm3' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-400'].join(' ')}>
+                            R$/m³
+                          </button>
+                          <button type="button" onClick={() => setMPriceMode('peca')}
+                            className={['px-1.5 py-0.5 rounded text-[9px] font-bold transition-all',
+                              mPriceMode === 'peca' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-400'].join(' ')}>
+                            R$/peça
+                          </button>
+                        </div>
+                      </div>
+                      {mPriceMode === 'm3' ? (
+                        <input type="number" value={mPreco} onChange={e => setMPreco(e.target.value)}
+                          placeholder="0,00"
+                          className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
+                      ) : (
+                        <input type="number" value={mPrecoPeca} onChange={e => setMPrecoPeca(e.target.value)}
+                          placeholder="0,00"
+                          className="w-full p-3 border-2 border-gray-200 rounded-xl text-center text-lg font-bold focus:border-amber-500 outline-none" />
+                      )}
                     </div>
                   </div>
 
-                  {(parseFloat(mEsp) > 0 && parseFloat(mLarg) > 0 && parseInt(mQty) > 0) && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
-                      <p className="text-[10px] text-amber-600 font-bold uppercase">Prévia</p>
-                      <p className="text-lg font-black text-amber-800">
-                        {((parseFloat(mEsp) / 100) * (parseFloat(mLarg) / 100) * mComp * (parseInt(mQty) || 0)).toFixed(3)} m³
-                        {mPreco && <> · {fmt((parseFloat(mEsp) / 100) * (parseFloat(mLarg) / 100) * mComp * (parseInt(mQty) || 0) * (parseFloat(mPreco) || 0))}</>}
-                      </p>
-                    </div>
-                  )}
+                  {(parseFloat(mEsp) > 0 && parseFloat(mLarg) > 0 && parseInt(mQty) > 0) && (() => {
+                    const esp = parseFloat(mEsp), larg = parseFloat(mLarg), qty = parseInt(mQty) || 0;
+                    const m3Peca = (esp / 100) * (larg / 100) * mComp;
+                    const m3Total = m3Peca * qty;
+                    const precoM3 = mPriceMode === 'peca'
+                      ? (m3Peca > 0 ? (parseFloat(mPrecoPeca) || 0) / m3Peca : 0)
+                      : (parseFloat(mPreco) || 0);
+                    const valorPeca = m3Peca * precoM3;
+                    const valorTotal = m3Total * precoM3;
+                    return (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
+                        <p className="text-[10px] text-amber-600 font-bold uppercase text-center">Prévia</p>
+                        <div className="grid grid-cols-2 gap-2 text-center">
+                          <div>
+                            <p className="text-[9px] text-amber-500">Valor da peça</p>
+                            <p className="text-sm font-black text-amber-800">{valorPeca > 0 ? fmt(valorPeca) : '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-amber-500">Total ({qty} peças)</p>
+                            <p className="text-sm font-black text-amber-800">{valorTotal > 0 ? fmt(valorTotal) : '—'}</p>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-amber-600 text-center">
+                          {m3Total.toFixed(3)} m³ · {fmt(precoM3)}/m³
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   <button onClick={confirmAddMadeira}
                     disabled={!mEsp || !mLarg || !mQty}
