@@ -64,6 +64,14 @@ export const ChequeTable: React.FC<Props> = ({
     ));
   };
 
+  const togglePaid = (id: string) => {
+    onChange(cheques.map(c =>
+      c.id === id
+        ? { ...c, paid: !c.paid, paidDate: !c.paid ? new Date().toISOString().split('T')[0] : undefined }
+        : c
+    ));
+  };
+
   const prazos = parsePrazos(paymentTerms);
   const isVista = prazos.length === 0;
 
@@ -111,22 +119,34 @@ export const ChequeTable: React.FC<Props> = ({
               <th className="px-3 py-2 text-center text-xs font-bold uppercase tracking-wider">Prazo</th>
               <th className="px-3 py-2 text-center text-xs font-bold uppercase tracking-wider">Vencimento</th>
               <th className="px-3 py-2 text-right text-xs font-bold uppercase tracking-wider">Valor</th>
+              <th className="px-3 py-2 text-center text-xs font-bold uppercase tracking-wider">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {cheques.map((cheque, i) => (
-              <tr key={cheque.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+            {cheques.map((cheque, i) => {
+              const isVencido = !cheque.paid && (() => {
+                const [d, m, y] = (cheque.vencimento || '').split('/').map(Number);
+                if (!d || !m || !y) return false;
+                const venc = new Date(y, m - 1, d);
+                const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+                return venc < hoje;
+              })();
+              return (
+              <tr key={cheque.id} className={[
+                i % 2 === 0 ? 'bg-white' : 'bg-gray-50',
+                cheque.paid ? 'opacity-60' : ''
+              ].join(' ')}>
                 <td className="px-3 py-2 text-xs font-bold text-gray-500">{String(i + 1).padStart(2, '0')}</td>
                 <td className="px-3 py-2 text-center text-xs text-gray-500">{cheque.dias} dias</td>
                 <td className="px-3 py-2 text-center">
                   {readOnly ? (
-                    <span className="text-sm font-bold">{cheque.vencimento}</span>
+                    <span className={['text-sm font-bold', cheque.paid ? 'line-through' : ''].join(' ')}>{cheque.vencimento}</span>
                   ) : (
                     <input
                       type="text"
                       value={cheque.vencimento}
                       onChange={e => updateCheque(cheque.id, 'vencimento', e.target.value)}
-                      className="w-28 text-center text-sm font-bold border-b border-dashed border-gray-300 bg-transparent focus:border-green-600 outline-none py-0.5"
+                      className={['w-28 text-center text-sm font-bold border-b border-dashed border-gray-300 bg-transparent focus:border-green-600 outline-none py-0.5', cheque.paid ? 'line-through' : ''].join(' ')}
                       placeholder="dd/MM/yyyy"
                     />
                   )}
@@ -144,8 +164,21 @@ export const ChequeTable: React.FC<Props> = ({
                     />
                   )}
                 </td>
+                <td className="px-3 py-2 text-center">
+                  <button
+                    onClick={() => !readOnly && togglePaid(cheque.id)}
+                    disabled={readOnly}
+                    className={[
+                      'text-[10px] font-black px-2.5 py-1 rounded-full transition-all',
+                      cheque.paid ? 'bg-green-100 text-green-700' : isVencido ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700',
+                      readOnly ? '' : 'hover:opacity-75 cursor-pointer'
+                    ].join(' ')}>
+                    {cheque.paid ? '✓ PAGO' : isVencido ? '⚠ VENCIDO' : 'A VENCER'}
+                  </button>
+                </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="bg-green-700 text-white font-bold">
