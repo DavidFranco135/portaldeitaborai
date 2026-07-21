@@ -5,6 +5,8 @@ export interface Cheque {
   dias: number;
   vencimento: string; // dd/MM/yyyy
   valor: number;
+  paid?: boolean;      // marcado manualmente como pago
+  paidDate?: string;   // quando foi marcado como pago
 }
 
 /**
