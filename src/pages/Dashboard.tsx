@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Users, FileText, Truck, ArrowRight, Clock, CheckCircle2, ChevronDown, Package, LayoutGrid } from 'lucide-react';
-import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 
 function fmt(n: number) {
@@ -15,7 +15,6 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [showPedidos, setShowPedidos] = useState(false);
   const [showRomaneios, setShowRomaneios] = useState(false);
-  const [periodoVendas, setPeriodoVendas] = useState<'hoje' | 'semana' | 'mes'>('hoje');
 
   // Orçamentos em andamento (era "Pedidos")
   const pedidosAndamento = state.documents.filter(
@@ -28,25 +27,6 @@ export const Dashboard: React.FC = () => {
     return paid < d.total - 0.01;
   });
 
-  // Vendas (romaneios) por período — Hoje / Semana / Mês
-  const now = new Date();
-  const vendasNoPeriodo = useMemo(() => {
-    const range = periodoVendas === 'hoje'
-      ? { start: startOfDay(now), end: endOfDay(now) }
-      : periodoVendas === 'semana'
-      ? { start: startOfWeek(now, { weekStartsOn: 0 }), end: endOfWeek(now, { weekStartsOn: 0 }) }
-      : { start: startOfMonth(now), end: endOfMonth(now) };
-    return state.documents.filter(d => {
-      if (d.type !== 'romaneio') return false;
-      try {
-        return isWithinInterval(parseISO(d.date + 'T12:00:00'), range);
-      } catch { return false; }
-    });
-  }, [state.documents, periodoVendas]);
-
-  const totalVendasPeriodo = vendasNoPeriodo.reduce((s, d) => s + d.total, 0);
-  const m3VendasPeriodo = vendasNoPeriodo.reduce((s, d) => s + (d.totalM3 || 0), 0);
-
   const marcarConcluido = async (id: string) => {
     const doc = state.documents.find(d => d.id === id);
     if (!doc) return;
@@ -58,40 +38,6 @@ export const Dashboard: React.FC = () => {
       <div>
         <h1 className="text-2xl font-black text-green-800">Bem-vindo!</h1>
         <p className="text-gray-500 text-sm">Portal de Itaboraí — Gestão Comercial</p>
-      </div>
-
-      {/* Vendas — Hoje / Semana / Mês */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black text-gray-700 uppercase tracking-wider">💰 Vendas</h2>
-          <div className="flex gap-0.5 p-0.5 bg-gray-100 rounded-lg">
-            {([
-              { val: 'hoje', label: 'Hoje' },
-              { val: 'semana', label: 'Semana' },
-              { val: 'mes', label: 'Mês' },
-            ] as { val: 'hoje' | 'semana' | 'mes'; label: string }[]).map(p => (
-              <button key={p.val} onClick={() => setPeriodoVendas(p.val)}
-                className={['px-3 py-1.5 rounded-md text-xs font-bold transition-all',
-                  periodoVendas === p.val ? 'bg-green-700 text-white shadow' : 'text-gray-500 hover:bg-gray-200'].join(' ')}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Vendido</p>
-            <p className="text-xl font-black text-green-700">{fmt(totalVendasPeriodo)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Vendas</p>
-            <p className="text-xl font-black text-gray-900">{vendasNoPeriodo.length}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">M³ Vendidos</p>
-            <p className="text-xl font-black text-gray-900">{m3VendasPeriodo.toFixed(2)}</p>
-          </div>
-        </div>
       </div>
 
       {/* Summary cards */}
