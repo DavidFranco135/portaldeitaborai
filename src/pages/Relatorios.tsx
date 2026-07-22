@@ -204,31 +204,36 @@ export const Relatorios: React.FC = () => {
       </div>
 
       {/* Primary filters — segmented buttons */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-0.5 p-0.5 bg-white border border-gray-200 rounded-lg">
-          {(['todos', 'pedido', 'romaneio', 'notaentrega'] as TypeFilter[]).map(f => (
-            <button key={f} onClick={() => setTypeFilter(f)}
-              className={['px-3 py-1.5 rounded-md text-[11px] font-bold transition-all',
-                typeFilter === f ? 'bg-green-700 text-white shadow' : 'text-gray-500 hover:bg-gray-100'].join(' ')}
-            >{f === 'notaentrega' ? 'Nota Entrega' : f === 'todos' ? 'Todos' : f === 'pedido' ? 'Orçamento' : f === 'romaneio' ? 'Venda' : f}</button>
-          ))}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-0.5 p-0.5 bg-white border border-gray-200 rounded-lg">
+            {(['todos', 'pedido', 'romaneio', 'notaentrega'] as TypeFilter[]).map(f => (
+              <button key={f} onClick={() => setTypeFilter(f)}
+                className={['px-3 py-1.5 rounded-md text-[11px] font-bold transition-all flex-shrink-0',
+                  typeFilter === f ? 'bg-green-700 text-white shadow' : 'text-gray-500 hover:bg-gray-100'].join(' ')}
+              >{f === 'notaentrega' ? 'Nota Entrega' : f === 'todos' ? 'Todos' : f === 'pedido' ? 'Orçamento' : f === 'romaneio' ? 'Venda' : f}</button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex gap-0.5 p-0.5 bg-white border border-gray-200 rounded-lg overflow-x-auto">
-          {([
-            { val: 'todos', label: 'Categoria', icon: LayoutGrid },
-            { val: 'madeira', label: 'Madeira', icon: TreePine },
-            { val: 'porta', label: 'Porta', icon: DoorOpen },
-            { val: 'batente', label: 'Batente', icon: Frame },
-            { val: 'aduela', label: 'Aduela', icon: Grid3x3 },
-            { val: 'bloco', label: 'Bloco', icon: Package },
-            { val: 'outro', label: 'Outro', icon: Package },
-          ] as { val: CategoriaFilter; label: string; icon: any }[]).map(f => (
-            <button key={f.val} onClick={() => setCategoriaFilter(f.val)}
-              className={['flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all whitespace-nowrap',
-                categoriaFilter === f.val ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:bg-gray-100'].join(' ')}
-            ><f.icon className="w-3 h-3 flex-shrink-0" /> {f.label}</button>
-          ))}
+        {/* Categoria — aba deslizante horizontal própria, com espaço garantido */}
+        <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex gap-1.5 p-0.5 bg-white border border-gray-200 rounded-lg w-max">
+            {([
+              { val: 'todos', label: 'Categoria', icon: LayoutGrid },
+              { val: 'madeira', label: 'Madeira', icon: TreePine },
+              { val: 'porta', label: 'Porta', icon: DoorOpen },
+              { val: 'batente', label: 'Batente', icon: Frame },
+              { val: 'aduela', label: 'Aduela', icon: Grid3x3 },
+              { val: 'bloco', label: 'Bloco', icon: Package },
+              { val: 'outro', label: 'Outro', icon: Package },
+            ] as { val: CategoriaFilter; label: string; icon: any }[]).map(f => (
+              <button key={f.val} onClick={() => setCategoriaFilter(f.val)}
+                className={['flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all flex-shrink-0 whitespace-nowrap',
+                  categoriaFilter === f.val ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:bg-gray-100'].join(' ')}
+              ><f.icon className="w-3.5 h-3.5 flex-shrink-0" /> {f.label}</button>
+            ))}
+          </div>
         </div>
       </div>
 
