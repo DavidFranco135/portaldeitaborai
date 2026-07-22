@@ -98,6 +98,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 <RefreshCw className={cn('w-3 h-3', state.isSyncing && 'animate-spin')} />
               </button>
             </div>
+            {state.pendingSync.length > 0 && (
+              <p className="text-[9px] text-amber-600 text-center font-bold">
+                ⏳ {state.pendingSync.length} pendente{state.pendingSync.length === 1 ? '' : 's'} de sincronizar
+              </p>
+            )}
             {state.lastSync && (
               <p className="text-[9px] text-gray-300 text-center">
                 Sync: {new Date(state.lastSync).toLocaleTimeString('pt-BR')}
@@ -181,6 +186,25 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
       {/* ── Main ── */}
       <main className="flex-1 min-w-0 overflow-x-hidden">
+        {/* Banner de conexão — sempre visível, avisa se está offline ou com dados esperando sincronizar */}
+        {(!state.isOnline || state.pendingSync.length > 0) && (
+          <div className={cn(
+            'px-4 py-2.5 text-xs font-bold flex items-center justify-center gap-2 text-center no-print',
+            !state.isOnline ? 'bg-red-600 text-white' : 'bg-amber-500 text-white'
+          )}>
+            {!state.isOnline ? (
+              <>
+                <CloudOff className="w-4 h-4 flex-shrink-0" />
+                Sem conexão — suas alterações estão salvas neste aparelho e serão enviadas quando a internet voltar
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 flex-shrink-0 animate-spin" />
+                Sincronizando {state.pendingSync.length} alteraç{state.pendingSync.length === 1 ? 'ão' : 'ões'} pendente{state.pendingSync.length === 1 ? '' : 's'}...
+              </>
+            )}
+          </div>
+        )}
         <div className="p-4 md:p-6 lg:p-8 pb-24 md:pb-8 max-w-full">
           {children}
         </div>
