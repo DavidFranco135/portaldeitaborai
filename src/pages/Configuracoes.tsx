@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { AppSettings } from '../types';
-import { Save, Plus, Trash2, Cloud, CloudOff, ExternalLink, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Save, Plus, Trash2, Cloud, CloudOff, AlertCircle, CheckCircle2, LogOut } from 'lucide-react';
+import { logout } from '../components/Login';
 
 const INPUT = 'w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-green-600 text-sm';
 
@@ -146,15 +147,6 @@ service cloud.firestore {
             <label className={LBL}>E-mail</label>
             <input value={form.companyEmail} onChange={e => setForm(p => ({ ...p, companyEmail: e.target.value }))} className={INPUT} />
           </div>
-          <div className="space-y-1">
-            <label className={LBL}>Comissão padrão (%)</label>
-            <input
-              type="number"
-              value={form.defaultCommissionPct}
-              onChange={e => setForm(p => ({ ...p, defaultCommissionPct: parseFloat(e.target.value) || 0 }))}
-              className={INPUT}
-            />
-          </div>
         </div>
       </div>
 
@@ -228,18 +220,17 @@ service cloud.firestore {
         </div>
       </div>
 
-      {/* Cloudflare info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 text-sm space-y-2">
-        <p className="font-bold text-blue-800 flex items-center gap-2">
-          <ExternalLink className="w-4 h-4" /> Deploy com Cloudflare Pages
-        </p>
-        <ol className="list-decimal ml-5 space-y-1 text-blue-900/80 text-xs">
-          <li>Suba o código no GitHub</li>
-          <li>Em <a href="https://pages.cloudflare.com" target="_blank" rel="noreferrer" className="underline">pages.cloudflare.com</a>, conecte o repositório</li>
-          <li>Build command: <code className="bg-blue-100 px-1 rounded">npm run build</code> — Output: <code className="bg-blue-100 px-1 rounded">dist</code></li>
-          <li>Adicione as variáveis VITE_FIREBASE_* nas configurações de ambiente</li>
-          <li>Aponte seu domínio Cloudflare para o projeto Pages</li>
-        </ol>
+      {/* Conta */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <h2 className="font-black text-green-800 mb-3">Conta</h2>
+        <button
+          onClick={() => {
+            if (confirm('Deseja sair da sua conta?')) logout();
+          }}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100 transition-colors"
+        >
+          <LogOut className="w-4 h-4" /> Sair
+        </button>
       </div>
     </div>
   );
