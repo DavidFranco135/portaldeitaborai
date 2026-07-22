@@ -4,6 +4,7 @@ import React, {
   useReducer,
   useEffect,
   useCallback,
+  useRef,
 } from 'react';
 import { AppData, Client, Document, AppSettings, BouncedCheck, StockItem, StockMovement } from '../types';
 import {
@@ -27,12 +28,27 @@ import {
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
+/**
+ * Item pendente de sincronização — guardado quando um salvamento na nuvem
+ * falha (geralmente por falta de internet). Fica persistido no
+ * localStorage também, pra sobreviver a um fechamento de página enquanto
+ * offline, e é reenviado automaticamente assim que a conexão volta.
+ */
+interface PendingItem {
+  id: string;
+  kind: 'client' | 'deleteClient' | 'document' | 'deleteDocument' | 'check' | 'deleteCheck' | 'stock' | 'deleteStock' | 'settings';
+  payload: any;
+  createdAt: string;
+}
+
 interface AppState extends AppData {
   bouncedChecks: BouncedCheck[];
   stockItems: StockItem[];
   isFirebaseReady: boolean;
   isSyncing: boolean;
   lastSync?: string;
+  isOnline: boolean;
+  pendingSync: PendingItem[];
 }
 
 const defaultSettings: AppSettings = {
@@ -59,6 +75,8 @@ const initialState: AppState = {
   settings: defaultSettings,
   isFirebaseReady: false,
   isSyncing: false,
+  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+  pendingSync: [],
 };
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
@@ -68,6 +86,8 @@ type Action =
   | { type: 'SET_FIREBASE_READY'; payload: boolean }
   | { type: 'SET_SYNCING'; payload: boolean }
   | { type: 'SET_LAST_SYNC'; payload: string }
+  | { type: 'SET_ONLINE'; payload: boolean }
+  | { type: 'SET_PENDING'; payload: PendingItem[] }
   | { type: 'ADD_CLIENT'; payload: Client }
   | { type: 'UPDATE_CLIENT'; payload: Client }
   | { type: 'DELETE_CLIENT'; payload: string }
@@ -96,6 +116,10 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, isSyncing: action.payload };
     case 'SET_LAST_SYNC':
       return { ...state, lastSync: action.payload };
+    case 'SET_ONLINE':
+      return { ...state, isOnline: action.payload };
+    case 'SET_PENDING':
+      return { ...state, pendingSync: action.payload };
     case 'SET_CLIENTS':
       return { ...state, clients: action.payload };
     case 'SET_DOCUMENTS':
@@ -170,11 +194,13 @@ interface ContextValue {
   deleteStockItem: (id: string) => Promise<void>;
   adjustStock: (stockItemId: string, delta: number, motivo: string, doc?: { id: string; number: string; type: 'pedido' | 'romaneio' | 'notaentrega' }) => Promise<void>;
   syncFromFirebase: () => Promise<void>;
+  flushPendingSync: () => Promise<void>;
 }
 
 const AppContext = createContext<ContextValue | undefined>(undefined);
 
 const LS_KEY = 'edi_timber_v2';
+const LS_PENDING_KEY = 'edi_timber_pending_sync';
 
 function loadFromLS(): Partial<AppData> {
   try {
@@ -191,10 +217,111 @@ function saveToLS(data: Partial<AppData>) {
   } catch {}
 }
 
+function loadPendingFromLS(): PendingItem[] {
+  try {
+    const raw = localStorage.getItem(LS_PENDING_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePendingToLS(items: PendingItem[]) {
+  try {
+    localStorage.setItem(LS_PENDING_KEY, JSON.stringify(items));
+  } catch {}
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
+  // Ref espelhando a fila pendente — evita closures desatualizadas dentro
+  // dos listeners de online/offline e do retry automático.
+  const pendingRef = useRef<PendingItem[]>([]);
+
+  const setPending = useCallback((items: PendingItem[]) => {
+    pendingRef.current = items;
+    dispatch({ type: 'SET_PENDING', payload: items });
+    savePendingToLS(items);
+  }, []);
+
+  /**
+   * Enfileira um item que falhou ao salvar na nuvem, pra tentar de novo
+   * automaticamente quando a conexão voltar. Substitui uma entrada
+   * anterior do mesmo item (mesmo kind + mesmo id no payload), pra não
+   * acumular tentativas repetidas do mesmo dado.
+   */
+  const enqueuePending = useCallback((kind: PendingItem['kind'], payload: any) => {
+    const itemId = typeof payload === 'string' ? payload : payload?.id;
+    const filtered = pendingRef.current.filter(p => {
+      const pId = typeof p.payload === 'string' ? p.payload : p.payload?.id;
+      return !(p.kind === kind && pId === itemId);
+    });
+    const entry: PendingItem = {
+      id: Math.random().toString(36).slice(2, 11),
+      kind,
+      payload,
+      createdAt: new Date().toISOString(),
+    };
+    setPending([...filtered, entry]);
+  }, [setPending]);
+
+  const dequeuePending = useCallback((entryId: string) => {
+    setPending(pendingRef.current.filter(p => p.id !== entryId));
+  }, [setPending]);
+
+  /**
+   * Executa o salvamento correspondente a um item pendente. Cada "kind"
+   * mapeia pra função certa do Firebase.
+   */
+  const runPendingItem = useCallback(async (item: PendingItem) => {
+    switch (item.kind) {
+      case 'client': return fbSaveClient(item.payload);
+      case 'deleteClient': return fbDeleteClient(item.payload);
+      case 'document': return fbSaveDocument(item.payload);
+      case 'deleteDocument': return fbDeleteDocument(item.payload);
+      case 'check': return fbSaveCheck(item.payload);
+      case 'deleteCheck': return fbDeleteCheck(item.payload);
+      case 'stock': return fbSaveStockItem(item.payload);
+      case 'deleteStock': return fbDeleteStockItem(item.payload);
+      case 'settings': return fbSaveSettings(item.payload);
+    }
+  }, []);
+
+  /**
+   * Reenvia tudo que está na fila de pendências. Chamado automaticamente
+   * quando a conexão volta (evento "online"), e também manualmente se
+   * quiser forçar uma tentativa.
+   */
+  const flushPendingSync = useCallback(async () => {
+    if (!isFirebaseConfigured() || pendingRef.current.length === 0) return;
+    const items = [...pendingRef.current];
+    for (const item of items) {
+      try {
+        await runPendingItem(item);
+        dequeuePending(item.id);
+      } catch {
+        // continua com os próximos — esse item permanece na fila pra
+        // tentar de novo na próxima vez
+      }
+    }
+  }, [runPendingItem, dequeuePending]);
+
+  /**
+   * Salva um item na nuvem com proteção contra falha de conexão — se der
+   * erro (geralmente por falta de internet), o item entra na fila de
+   * pendências em vez de simplesmente perder a alteração.
+   */
+  const safeCloudSave = useCallback(async (kind: PendingItem['kind'], payload: any, fn: () => Promise<void>) => {
+    if (!isFirebaseConfigured()) return;
+    try {
+      await fn();
+    } catch (err) {
+      console.error(`Falha ao sincronizar (${kind}), guardando pra tentar de novo depois:`, err);
+      enqueuePending(kind, payload);
+    }
+  }, [enqueuePending]);
 
   // ── Bootstrap ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -204,13 +331,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       dispatch({ type: 'LOAD_LOCAL', payload: local as any });
     }
 
+    // 1b. Restaura fila de sincronização pendente de uma sessão anterior
+    // (ex: o usuário fechou o app ainda offline com alterações não salvas)
+    const pending = loadPendingFromLS();
+    if (pending.length > 0) {
+      pendingRef.current = pending;
+      dispatch({ type: 'SET_PENDING', payload: pending });
+    }
+
     // 2. Try Firebase
     const ok = initFirebase();
     dispatch({ type: 'SET_FIREBASE_READY', payload: ok });
 
     if (ok) {
       syncFromFirebase();
+      // Se já tinha pendências salvas de antes e a conexão está ok, tenta
+      // sincronizar assim que o app abre.
+      if (pending.length > 0 && navigator.onLine) {
+        flushPendingSync();
+      }
     }
+
+    // 3. Monitor de conexão — atualiza o indicador visual e dispara o
+    // reenvio automático da fila assim que a internet voltar.
+    const handleOnline = () => {
+      dispatch({ type: 'SET_ONLINE', payload: true });
+      flushPendingSync();
+    };
+    const handleOffline = () => {
+      dispatch({ type: 'SET_ONLINE', payload: false });
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // 4. Reforço: tenta reenviar a fila periodicamente mesmo sem o evento
+    // "online" disparar (às vezes o navegador não detecta certinho —
+    // "conectado ao wifi" nem sempre significa "com internet de verdade").
+    const interval = setInterval(() => {
+      if (navigator.onLine && pendingRef.current.length > 0) {
+        flushPendingSync();
+      }
+    }, 20000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Persist to localStorage ────────────────────────────────────────────────
@@ -257,36 +425,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         : 'ADD_CLIENT',
       payload: client,
     });
-    if (isFirebaseConfigured()) await fbSaveClient(client);
-  }, [state.clients]);
+    await safeCloudSave('client', client, () => fbSaveClient(client));
+  }, [state.clients, safeCloudSave]);
 
   const deleteClient = useCallback(async (id: string) => {
     dispatch({ type: 'DELETE_CLIENT', payload: id });
-    if (isFirebaseConfigured()) await fbDeleteClient(id);
-  }, []);
+    await safeCloudSave('deleteClient', id, () => fbDeleteClient(id));
+  }, [safeCloudSave]);
 
   const saveDocument = useCallback(async (document: Document) => {
     dispatch({ type: 'ADD_DOCUMENT', payload: document });
-    if (isFirebaseConfigured()) await fbSaveDocument(document);
-  }, []);
+    await safeCloudSave('document', document, () => fbSaveDocument(document));
+  }, [safeCloudSave]);
 
   const deleteDocument = useCallback(async (id: string) => {
     dispatch({ type: 'DELETE_DOCUMENT', payload: id });
-    if (isFirebaseConfigured()) await fbDeleteDocument(id);
-  }, []);
+    await safeCloudSave('deleteDocument', id, () => fbDeleteDocument(id));
+  }, [safeCloudSave]);
 
   const saveCheck = useCallback(async (check: BouncedCheck) => {
     dispatch({
       type: state.bouncedChecks.find(c => c.id === check.id) ? 'UPDATE_CHECK' : 'ADD_CHECK',
       payload: check,
     });
-    if (isFirebaseConfigured()) await fbSaveCheck(check);
-  }, [state.bouncedChecks]);
+    await safeCloudSave('check', check, () => fbSaveCheck(check));
+  }, [state.bouncedChecks, safeCloudSave]);
 
   const deleteCheck = useCallback(async (id: string) => {
     dispatch({ type: 'DELETE_CHECK', payload: id });
-    if (isFirebaseConfigured()) await fbDeleteCheck(id);
-  }, []);
+    await safeCloudSave('deleteCheck', id, () => fbDeleteCheck(id));
+  }, [safeCloudSave]);
 
   const saveStockItem = useCallback(async (item: StockItem) => {
     // Firestore rejeita campos com valor undefined — remove antes de salvar
@@ -297,13 +465,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       type: state.stockItems.find(s => s.id === clean.id) ? 'UPDATE_STOCK' : 'ADD_STOCK',
       payload: clean,
     });
-    if (isFirebaseConfigured()) await fbSaveStockItem(clean);
-  }, [state.stockItems]);
+    await safeCloudSave('stock', clean, () => fbSaveStockItem(clean));
+  }, [state.stockItems, safeCloudSave]);
 
   const deleteStockItem = useCallback(async (id: string) => {
     dispatch({ type: 'DELETE_STOCK', payload: id });
-    if (isFirebaseConfigured()) await fbDeleteStockItem(id);
-  }, []);
+    await safeCloudSave('deleteStock', id, () => fbDeleteStockItem(id));
+  }, [safeCloudSave]);
 
   /**
    * Ajusta a quantidade de um item de estoque e registra o movimento.
@@ -342,8 +510,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveSettings = useCallback(async (settings: AppSettings) => {
     dispatch({ type: 'UPDATE_SETTINGS', payload: settings });
-    if (isFirebaseConfigured()) await fbSaveSettings(settings);
-  }, []);
+    await safeCloudSave('settings', settings, () => fbSaveSettings(settings));
+  }, [safeCloudSave]);
 
   return (
     <AppContext.Provider
@@ -361,6 +529,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteStockItem,
         adjustStock,
         syncFromFirebase,
+        flushPendingSync,
       }}
     >
       {children}
