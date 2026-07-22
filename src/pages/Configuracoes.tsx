@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../store/AppContext';
 import { AppSettings } from '../types';
 import { Save, Plus, Trash2, Cloud, CloudOff, AlertCircle, CheckCircle2, LogOut } from 'lucide-react';
@@ -10,6 +10,15 @@ export const Configuracoes: React.FC = () => {
   const { state, saveSettings, syncFromFirebase } = useApp();
   const [form, setForm] = useState<AppSettings>({ ...state.settings });
   const [saved, setSaved] = useState(false);
+
+  // A tela pode abrir antes dos dados reais chegarem do Firebase (a
+  // busca é assíncrona) — sem isso, o formulário fica travado no valor
+  // inicial (com as referências de exemplo do código) mesmo depois dos
+  // dados corretos chegarem, dando a impressão de que o que foi apagado
+  // "voltou", quando na verdade só a tela não tinha atualizado sozinha.
+  useEffect(() => {
+    setForm({ ...state.settings });
+  }, [state.settings]);
 
   const handleSave = async () => {
     await saveSettings(form);
