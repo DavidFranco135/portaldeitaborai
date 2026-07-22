@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { Link } from 'react-router-dom';
-import { FileText, Truck, Trash2, ExternalLink, Search, Calendar, CheckCircle2, Clock, DollarSign, AlertCircle, Package } from 'lucide-react';
+import { FileText, Truck, Trash2, ExternalLink, Search, Calendar, CheckCircle2, Clock, DollarSign, AlertCircle, Package, TreePine, DoorOpen, Frame, Grid3x3, LayoutGrid } from 'lucide-react';
 import { PartnerDetail } from '../components/PartnerDetail';
 import { buildPartnerReportHTML } from '../lib/partnerReportHTML';
 import { AnimatePresence } from 'motion/react';
@@ -216,18 +216,18 @@ export const Relatorios: React.FC = () => {
 
         <div className="flex gap-0.5 p-0.5 bg-white border border-gray-200 rounded-lg overflow-x-auto">
           {([
-            { val: 'todos', label: 'Categoria', emoji: '' },
-            { val: 'madeira', label: 'Madeira', emoji: '🪵' },
-            { val: 'porta', label: 'Porta', emoji: '🚪' },
-            { val: 'batente', label: 'Batente', emoji: '🖼' },
-            { val: 'aduela', label: 'Aduela', emoji: '🖼' },
-            { val: 'bloco', label: 'Bloco', emoji: '🧱' },
-            { val: 'outro', label: 'Outro', emoji: '📦' },
-          ] as { val: CategoriaFilter; label: string; emoji: string }[]).map(f => (
+            { val: 'todos', label: 'Categoria', icon: LayoutGrid },
+            { val: 'madeira', label: 'Madeira', icon: TreePine },
+            { val: 'porta', label: 'Porta', icon: DoorOpen },
+            { val: 'batente', label: 'Batente', icon: Frame },
+            { val: 'aduela', label: 'Aduela', icon: Grid3x3 },
+            { val: 'bloco', label: 'Bloco', icon: Package },
+            { val: 'outro', label: 'Outro', icon: Package },
+          ] as { val: CategoriaFilter; label: string; icon: any }[]).map(f => (
             <button key={f.val} onClick={() => setCategoriaFilter(f.val)}
-              className={['px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all whitespace-nowrap',
+              className={['flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all whitespace-nowrap',
                 categoriaFilter === f.val ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:bg-gray-100'].join(' ')}
-            >{f.emoji} {f.label}</button>
+            ><f.icon className="w-3 h-3 flex-shrink-0" /> {f.label}</button>
           ))}
         </div>
       </div>
