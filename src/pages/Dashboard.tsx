@@ -60,11 +60,9 @@ export const Dashboard: React.FC = () => {
         </Link>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      {/* Quick Actions — só o que não tem atalho na barra de baixo */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { to: '/pedidos/novo', icon: FileText, label: 'Orçamento', sub: 'Proposta para o cliente', color: 'text-amber-600', bg: 'bg-amber-50' },
-          { to: '/romaneios/novo', icon: Truck, label: 'Nova Venda', sub: 'Venda com entrega', color: 'text-blue-600', bg: 'bg-blue-50' },
           { to: '/notas-entrega/novo', icon: Package, label: 'Nota de Entrega', sub: 'Confirmação de itens', color: 'text-purple-600', bg: 'bg-purple-50' },
           { to: '/catalogo', icon: LayoutGrid, label: 'Catálogo', sub: 'Vender pelo estoque', color: 'text-orange-600', bg: 'bg-orange-50' },
           { to: '/clientes', icon: Users, label: 'Clientes', sub: 'Gestão de contatos', color: 'text-green-700', bg: 'bg-green-50' },
