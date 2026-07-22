@@ -4,7 +4,7 @@ import { useApp } from '../store/AppContext';
 import { StockItem } from '../types';
 import {
   Search, ArrowLeft, ShoppingCart, X, Package, FileText, AlertTriangle,
-  LayoutGrid,
+  LayoutGrid, TreePine, DoorOpen, Frame,
 } from 'lucide-react';
 
 function fmt(n: number) {
@@ -12,10 +12,10 @@ function fmt(n: number) {
 }
 
 const CATEGORIAS = [
-  { val: 'madeira', label: 'Madeira', emoji: '🪵', color: 'from-amber-500 to-amber-600' },
-  { val: 'porta', label: 'Portas', emoji: '🚪', color: 'from-blue-500 to-blue-600' },
-  { val: 'batente', label: 'Batentes', emoji: '🖼', color: 'from-purple-500 to-purple-600' },
-  { val: 'outro', label: 'Outros', emoji: '📦', color: 'from-gray-500 to-gray-600' },
+  { val: 'madeira', label: 'Madeira', icon: TreePine, color: 'from-amber-500 to-amber-600' },
+  { val: 'porta', label: 'Portas', icon: DoorOpen, color: 'from-blue-500 to-blue-600' },
+  { val: 'batente', label: 'Batentes', icon: Frame, color: 'from-purple-500 to-purple-600' },
+  { val: 'outro', label: 'Outros', icon: Package, color: 'from-gray-500 to-gray-600' },
 ] as const;
 
 /**
@@ -79,8 +79,8 @@ export const Catalogo: React.FC = () => {
         )}
         <div>
           <h1 className="text-2xl font-black text-green-800 flex items-center gap-2">
-            <LayoutGrid className="w-6 h-6" />
-            {catInfo && !buscaAtiva ? `${catInfo.emoji} ${catInfo.label}` : 'Catálogo'}
+            {catInfo && !buscaAtiva ? <catInfo.icon className="w-6 h-6" /> : <LayoutGrid className="w-6 h-6" />}
+            {catInfo && !buscaAtiva ? catInfo.label : 'Catálogo'}
           </h1>
           <p className="text-gray-500 text-sm">Navegue pelo estoque e venda direto daqui</p>
         </div>
@@ -107,7 +107,7 @@ export const Catalogo: React.FC = () => {
             return (
               <button key={c.val} onClick={() => setCategoriaAberta(c.val)}
                 className={`relative bg-gradient-to-br ${c.color} rounded-2xl p-6 shadow-md hover:shadow-lg active:scale-95 transition-all text-left overflow-hidden`}>
-                <div className="text-5xl mb-3">{c.emoji}</div>
+                <c.icon className="w-10 h-10 mb-3 text-white" strokeWidth={1.75} />
                 <p className="text-white font-black text-lg">{c.label}</p>
                 <p className="text-white/80 text-xs font-bold mt-0.5">
                   {info.count} ite{info.count !== 1 ? 'ns' : 'm'}
@@ -135,7 +135,7 @@ export const Catalogo: React.FC = () => {
                   'bg-white border-2 rounded-2xl p-3 text-left shadow-sm hover:shadow-md active:scale-95 transition-all flex flex-col',
                   isLow ? 'border-red-200' : 'border-gray-100'
                 ].join(' ')}>
-                <div className="text-2xl mb-1.5">{cat?.emoji || '📦'}</div>
+                {cat ? <cat.icon className="w-6 h-6 mb-1.5 text-gray-600" strokeWidth={1.75} /> : <Package className="w-6 h-6 mb-1.5 text-gray-600" strokeWidth={1.75} />}
                 <p className="font-bold text-gray-800 text-xs leading-tight line-clamp-2 flex-1">{item.descricao}</p>
                 {item.categoria === 'madeira' && item.espessura && item.largura && item.comprimentoRef ? (
                   <>
